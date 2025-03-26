@@ -618,7 +618,12 @@ def register(username, password, ip):
             "id": str(uuid4()),
             "room": "global",
             "username": "AutoMod",
-            "message": f"{recent_attempts + 1}x Account Creation Spamming\nIP: {ip}\nNumber: {recent_attempts + 1}\nStatus: Accounts banned, account creation stopped for that IP for 15m",
+            "message": f"""
+            <p>{recent_attempts + 1}x Account Creation Spamming</p>
+            <p>IP: <b>{ip}</b></p>
+            <p>Number: <b>{recent_attempts + 1}</b></p>
+            <p>Status: Accounts banned, account creation stopped for that IP for 5m</p>
+            """,
             "timestamp": current_time,
             "type": "system",
         }
@@ -1604,13 +1609,13 @@ def parse_command(username, command, room_name):
 
     if command == "clear_chat" and is_admin:
         messages_collection.delete_many({"room": room_name})
-        system_message = f"Cleared chat in {room_name}"
+        system_message = f"Cleared chat in <b>{room_name}</b>"
     elif command == "clear_user" and len(args) == 1 and is_admin:
         target_username = args[0]
         messages_collection.delete_many(
             {"room": room_name, "username": target_username}
         )
-        system_message = f"Deleted messages from {target_username} in {room_name}"
+        system_message = f"Deleted messages from <b>{target_username}</b> in <b>{room_name}</b>"
     elif command == "delete_many" and len(args) == 1 and is_admin:
         amount = args[0]
         try:
@@ -1622,7 +1627,7 @@ def parse_command(username, command, room_name):
             )
             ids_to_delete = [doc["_id"] for doc in messages_to_delete]
             messages_collection.delete_many({"_id": {"$in": ids_to_delete}})
-            system_message = f"Deleted {amount} messages from {room_name}"
+            system_message = f"Deleted <b>{amount}</b> messages from <b>{room_name}</b>"
         except ValueError:
             system_message = "Invalid amount specified for deletion"
 
@@ -1630,27 +1635,27 @@ def parse_command(username, command, room_name):
         target_username, duration, *reason_parts = args
         reason = " ".join(reason_parts)
         ban_user(target_username, reason, duration)
-        system_message = f"Banned {target_username} for {reason} ({duration})"
+        system_message = f"Banned <b>{target_username}</b> for <b>{reason}</b> (<b>{duration}</b>)"
     elif command == "mute" and len(args) == 2 and is_mod:
         target_username, duration = args
         mute_user(target_username, duration)
-        system_message = f"Muted {target_username} for {duration}"
+        system_message = f"Muted <b>{target_username}</b> for <b>{duration}</b>"
     elif command == "unban" and len(args) == 1 and is_admin:
         target_username = args[0]
         users_collection.update_one(
             {"username": target_username}, {"$set": {"banned": False}}
         )
-        system_message = f"Unbanned {target_username}"
+        system_message = f"Unbanned <b>{target_username}</b>"
     elif command == "unmute" and len(args) == 1 and is_mod:
         target_username = args[0]
         unmute_user(target_username)
-        system_message = f"Unmuted {target_username}"
+        system_message = f"Unmuted <b>{target_username}</b>"
     elif command == "sudo" and len(args) >= 2 and is_admin:
         sudo_username = args[0]
         sudo_message = " ".join(args[1:])
         sudo_user = users_collection.find_one({"username": sudo_username})
         if not sudo_user:
-            system_message = f"User {sudo_username} not found"
+            system_message = f"User <b>{sudo_username}</b> not found"
         else:
             messages_collection.insert_one(
                 {
@@ -1670,13 +1675,35 @@ def parse_command(username, command, room_name):
         else:
             banned_users_list = "\n".join(
                 [
-                    f"{user['username']} - {user.get("banned_reason", "No reason provided")}"
+                    f"<b>{user['username']}</b> - {user.get('banned_reason', 'No reason provided')}"
                     for user in banned_users
                 ]
             )
             system_message = "Banned users:\n" + banned_users_list
     elif command == "help" and is_mod:
-        system_message = "Available commands: /clear_chat (Admin), /clear_user <username> (Admin), /delete_many <amount> (Admin), /ban <username> <duration> <reason> (Admin), /mute <username> <duration> (Mod), /unban <username> (Admin), /unmute <username> (Mod), /sudo <username> <message> (Admin), /list_banned (Mod), /help (Mod)"
+        system_message = """
+        <h3>Available Commands:</h3>
+        <ul>
+            <li><b>Admin:</b>
+                <ul>
+                    <li>/clear_chat</li>
+                    <li>/clear_user &lt;username&gt;</li>
+                    <li>/delete_many &lt;amount&gt;</li>
+                    <li>/ban &lt;username&gt; &lt;duration&gt; &lt;reason&gt;</li>
+                    <li>/unban &lt;username&gt;</li>
+                    <li>/sudo &lt;username&gt; &lt;message&gt;</li>
+                </ul>
+            </li>
+            <li><b>Mod:</b>
+                <ul>
+                    <li>/mute &lt;username&gt; &lt;duration&gt;</li>
+                    <li>/unmute &lt;username&gt;</li>
+                    <li>/list_banned</li>
+                    <li>/help</li>
+                </ul>
+            </li>
+        </ul>
+        """
     else:
         system_message = "Invalid command"
 
@@ -1717,7 +1744,12 @@ def send_message(room_name, message_content, username, ip):
             "id": str(uuid4()),
             "room": "global",
             "username": "AutoMod",
-            "message": f"{user_message_count + 1}x Message Spamming\nUsername: {username}\nNumber: {user_message_count + 1}\nStatus: Messages deleted, user muted for 5m",
+            "message": (
+                f"<p>{user_message_count + 1}x Message Spamming</p>"
+                f"<p>Username: <b>{username}</b></p>"
+                f"<p>Number: <b>{user_message_count + 1}</b></p>"
+                f"<p>Status: <b>{delete_result.deleted_count}</b> messages deleted, <b>{username}</b> muted for 5m</p>"
+            ),
             "timestamp": current_time,
             "type": "system",
         }
