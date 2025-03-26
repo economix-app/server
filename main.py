@@ -69,12 +69,10 @@ account_creation_attempts = db.account_creation_attempts
 message_attempts = db.message_attempts
 blocked_ips = db.blocked_ips
 failed_logins = db.failed_logins
-automod_config = db.automod_config
 user_history = db.user_history
 
 # AutoMod
 AUTOMOD_CONFIG = {
-    "ENABLED": True,
     "ACCOUNT_CREATION_THRESHOLD": 7,
     "ACCOUNT_CREATION_TIME_WINDOW": 1 * 60,  # 1 minute
     "MESSAGE_SPAM_THRESHOLD": 5,
@@ -116,17 +114,9 @@ AUTOMOD_CONFIG = {
     ],
 }
 
-automod_config.update_one(
-    {"key": "main"}, {"$set": AUTOMOD_CONFIG}, upsert=True
-)
-
 
 def get_automod_config():
-    return automod_config.find_one({"key": "main"}) or AUTOMOD_CONFIG
-
-
-def update_automod_config(new_settings):
-    automod_config.update_one({"key": "main"}, {"$set": new_settings}, upsert=True)
+    return AUTOMOD_CONFIG
 
 
 # Create indexes
@@ -138,21 +128,20 @@ misc_collection.create_index([("type", ASCENDING)])
 pets_collection.create_index([("id", ASCENDING)], unique=True)
 account_creation_attempts.create_index(
     [("timestamp", ASCENDING)],
-    expireAfterSeconds=get_automod_config()["ACCOUNT_CREATION_TIME_WINDOW"],
+    expireAfterSeconds=get_automod_config().get("ACCOUNT_CREATION_TIME_WINDOW"),
 )
 message_attempts.create_index(
     [("timestamp", ASCENDING)],
-    expireAfterSeconds=get_automod_config()["MESSAGE_SPAM_TIME_WINDOW"],
+    expireAfterSeconds=get_automod_config().get("MESSAGE_SPAM_TIME_WINDOW"),
 )
 blocked_ips.create_index([("blocked_until", ASCENDING)], expireAfterSeconds=0)
 blocked_ips.create_index([("ip", ASCENDING)])
 failed_logins.create_index(
     [("timestamp", ASCENDING)],
-    expireAfterSeconds=get_automod_config()["FAILED_LOGIN_WINDOW"],
+    expireAfterSeconds=get_automod_config().get("FAILED_LOGIN_WINDOW"),
 )
 message_attempts.create_index([("ip", ASCENDING), ("timestamp", ASCENDING)])
 user_history.create_index([("username", ASCENDING)])
-automod_config.create_index([("key", ASCENDING)], unique=True)
 
 
 def is_subnet_blocked(ip):
@@ -701,17 +690,17 @@ def register(username, password, ip):
             "ip": ip,
             "timestamp": {
                 "$gt": current_time
-                - get_automod_config()["ACCOUNT_CREATION_TIME_WINDOW"]
+                - get_automod_config().get("ACCOUNT_CREATION_TIME_WINDOW")
             },
         }
     )
 
     if (
-        recent_attempts >= get_automod_config()["ACCOUNT_CREATION_THRESHOLD"]
+        recent_attempts >= get_automod_config().get("ACCOUNT_CREATION_THRESHOLD")
         and get_automod_config().get("ENABLED", True)
     ):
         blocked_until = (
-            current_time + get_automod_config()["ACCOUNT_CREATION_BLOCK_DURATION"]
+            current_time + get_automod_config().get("ACCOUNT_CREATION_BLOCK_DURATION")
         )
         blocked_ips.update_one(
             {"ip": ip},
@@ -1821,12 +1810,6 @@ def parse_command(username, command, room_name):
                 ]
             )
             system_message = "Banned users:\n" + banned_users_list
-    elif command == "toggle_automod" and is_admin:
-        current_state = get_automod_config().get("ENABLED", True)
-        new_state = not current_state
-        update_automod_config({"ENABLED": new_state})
-        
-        system_message = f"Automod has been <b>{'enabled' if new_state else 'disabled'}</b>"
     elif command == "help" and is_mod:
         system_message = """
         <h3>Available Commands:</h3>
@@ -1837,7 +1820,6 @@ def parse_command(username, command, room_name):
         <p>/ban [username] [duration] [reason] - Bans the user with the supplied parameters</p>
         <p>/unban [username] - Unbans the user</p>
         <p>/sudo [username] [message] - Sends a message as that user</p>
-        <p>/toggle_automod - Toggles automod on or off</p>
         <h4>Admin & Mod</h4>
         <p>/mute [username] [duration] - Mutes the user with the supplied parameters</p>
         <p>/unmute [username] - Unmutes the user</p>
@@ -1869,7 +1851,7 @@ def send_message(room_name, message_content, username, ip):
         {
             "username": username,
             "timestamp": {
-                "$gt": current_time - get_automod_config()["MESSAGE_SPAM_TIME_WINDOW"]
+                "$gt": current_time - get_automod_config().get("MESSAGE_SPAM_TIME_WINDOW")
             },
         }
     )
@@ -1893,18 +1875,18 @@ def send_message(room_name, message_content, username, ip):
         return jsonify({"error": "Message blocked", "code": "content-spam"}), 403
 
     if (
-        user_message_count >= get_automod_config()["MESSAGE_SPAM_THRESHOLD"]
+        user_message_count >= get_automod_config().get("MESSAGE_SPAM_THRESHOLD")
         and get_automod_config().get("ENABLED", True)
     ):
         user_join_time = user.get("join_time", current_time)
-        is_new_user = (current_time - user_join_time) < get_automod_config()[
+        is_new_user = (current_time - user_join_time) < get_automod_config().get(
             "MIN_ACCOUNT_AGE"
-        ]
+        )
 
         mute_duration = (
-            get_automod_config()["NEW_USER_MESSAGE_SPAM_MUTE_DURATION"]
+            get_automod_config().get("NEW_USER_MESSAGE_SPAM_MUTE_DURATION")
             if is_new_user
-            else get_automod_config()["MESSAGE_SPAM_MUTE_DURATION"]
+            else get_automod_config().get("MESSAGE_SPAM_MUTE_DURATION")
         )
         mute_user(username, mute_duration)
 
@@ -1913,7 +1895,7 @@ def send_message(room_name, message_content, username, ip):
                 "username": username,
                 "timestamp": {
                     "$gt": current_time
-                    - get_automod_config()["MESSAGE_SPAM_TIME_WINDOW"]
+                    - get_automod_config().get("MESSAGE_SPAM_TIME_WINDOW")
                 },
             }
         )
