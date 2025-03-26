@@ -80,7 +80,7 @@ AUTOMOD_CONFIG = {
     "MESSAGE_SPAM_THRESHOLD": 5,
     "MESSAGE_SPAM_TIME_WINDOW": 3,  # 5 seconds
     "MESSAGE_SPAM_MUTE_DURATION": "5m",
-    "NEW_USER_SPAM_MUTE_DURATION": "10m",
+    "NEW_USER_MESSAGE_SPAM_MUTE_DURATION": "10m",
     "ACCOUNT_CREATION_BLOCK_DURATION": 5 * 60,  # 5 minutes
     "MESSAGE_IP_THRESHOLD": 15,
     "MESSAGE_IP_WINDOW": 5,
@@ -122,7 +122,7 @@ automod_config.update_one(
 
 
 def get_automod_config():
-    return AUTOMOD_CONFIG
+    return automod_config.find_one({"key": "main"}) or AUTOMOD_CONFIG
 
 
 def update_automod_config(new_settings):
