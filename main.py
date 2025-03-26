@@ -57,14 +57,6 @@ MAX_ITEM_PRICE = 1000000000000
 MIN_ITEM_PRICE = 1
 DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
 
-# AutoMod
-ACCOUNT_CREATION_THRESHOLD = 7
-ACCOUNT_CREATION_TIME_WINDOW = 1 * 60  # 1 minute
-MESSAGE_SPAM_THRESHOLD = 5
-MESSAGE_SPAM_TIME_WINDOW = 3  # 5 seconds
-MESSAGE_SPAM_MUTE_DURATION = "5m"
-ACCOUNT_CREATION_BLOCK_DURATION = 5 * 60  # 5 minutes
-
 # Collections
 users_collection = db.users
 items_collection = db.items
@@ -75,6 +67,65 @@ pets_collection = db.pets
 account_creation_attempts = db.account_creation_attempts
 message_attempts = db.message_attempts
 blocked_ips = db.blocked_ips
+failed_logins = db.failed_logins
+automod_config = db.automod_config
+user_history = db.user_history
+
+# AutoMod
+AUTOMOD_CONFIG = {
+    "ACCOUNT_CREATION_THRESHOLD": 7,
+    "ACCOUNT_CREATION_TIME_WINDOW": 1 * 60,  # 1 minute
+    "MESSAGE_SPAM_THRESHOLD": 5,
+    "MESSAGE_SPAM_TIME_WINDOW": 3,  # 5 seconds
+    "MESSAGE_SPAM_MUTE_DURATION": "5m",
+    "NEW_USER_SPAM_MUTE_DURATION": "10m",
+    "ACCOUNT_CREATION_BLOCK_DURATION": 5 * 60,  # 5 minutes
+    "MESSAGE_IP_THRESHOLD": 15,
+    "MESSAGE_IP_WINDOW": 5,
+    "FAILED_LOGIN_THRESHOLD": 5,
+    "FAILED_LOGIN_WINDOW": 60,
+    "MAX_LINKS": 2,
+    "MAX_CAPS_RATIO": 0.7,
+    "MIN_ACCOUNT_AGE": 3600,  # 1 hour
+    "SUBNET_BLOCKING": True,
+    "SPAM_PATTERNS": [
+        r"(?i)free\s+money",
+        r"(?i)buy\s+followers",
+        r"(?i)http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
+        r"(?i)cheap\s+loans",
+        r"(?i)work\s+from\s+home",
+        r"(?i)make\s+money\s+fast",
+        r"(?i)weight\s+loss\s+supplements",
+        r"(?i)earn\s+\$\d+\s+per\s+day",
+        r"(?i)limited\s+time\s+offer",
+        r"(?i)click\s+here\s+to\s+claim",
+        r"(?i)congratulations\s+you\s+won",
+        r"(?i)instant\s+cash",
+        r"(?i)no\s+credit\s+check\s+loans",
+        r"(?i)100%\s+guaranteed",
+        r"(?i)miracle\s+cure",
+        r"(?i)risk\s+free\s+trial",
+        r"(?i)as\s+seen\s+on\s+TV",
+        r"(?i)win\s+a\s+free\s+(iPhone|gift card|vacation)",
+        r"(?i)boost\s+your\s+SEO\s+ranking",
+        r"(?i)hot\s+singles\s+in\s+your\s+area",
+        r"(?i)order\s+now\s+and\s+save",
+        r"(?i)act\s+now\s+before\s+it's\s+gone",
+    ],
+}
+
+automod_config.update_one(
+    {"key": "main"}, {"$setOnInsert": AUTOMOD_CONFIG}, upsert=True
+)
+
+
+def get_automod_config():
+    return automod_config.find_one({"key": "main"}) or AUTOMOD_CONFIG
+
+
+def update_automod_config(new_settings):
+    automod_config.update_one({"key": "main"}, {"$set": new_settings}, upsert=True)
+
 
 # Create indexes
 users_collection.create_index([("username", ASCENDING)], unique=True)
@@ -84,13 +135,50 @@ item_meta_collection.create_index([("id", ASCENDING)])
 misc_collection.create_index([("type", ASCENDING)])
 pets_collection.create_index([("id", ASCENDING)], unique=True)
 account_creation_attempts.create_index(
-    [("timestamp", ASCENDING)], expireAfterSeconds=ACCOUNT_CREATION_TIME_WINDOW
+    [("timestamp", ASCENDING)],
+    expireAfterSeconds=get_automod_config()["ACCOUNT_CREATION_TIME_WINDOW"],
 )
 message_attempts.create_index(
-    [("timestamp", ASCENDING)], expireAfterSeconds=MESSAGE_SPAM_TIME_WINDOW
+    [("timestamp", ASCENDING)],
+    expireAfterSeconds=get_automod_config()["MESSAGE_SPAM_TIME_WINDOW"],
 )
 blocked_ips.create_index([("blocked_until", ASCENDING)], expireAfterSeconds=0)
 blocked_ips.create_index([("ip", ASCENDING)])
+failed_logins.create_index(
+    [("timestamp", ASCENDING)],
+    expireAfterSeconds=get_automod_config()["FAILED_LOGIN_WINDOW"],
+)
+message_attempts.create_index([("ip", ASCENDING), ("timestamp", ASCENDING)])
+user_history.create_index([("username", ASCENDING)])
+automod_config.create_index([("key", ASCENDING)], unique=True)
+
+
+def is_subnet_blocked(ip):
+    if not get_automod_config().get("SUBNET_BLOCKING"):
+        return False
+    subnet = ".".join(ip.split(".")[:3]) + ".0/24" if "." in ip else ip
+    return blocked_ips.find_one({"subnet": subnet})
+
+
+def check_content_spam(message):
+    config = get_automod_config()
+
+    # Check spam patterns
+    for pattern in config.get("SPAM_PATTERNS", []):
+        if re.search(pattern, message):
+            return True
+
+    # Check excessive links
+    if len(re.findall(r"http[s]?://", message)) > config.get("MAX_LINKS", 2):
+        return True
+
+    # Check excessive capitalization
+    if len(message) > 10:
+        caps_count = sum(1 for c in message if c.isupper())
+        if caps_count / len(message) > config.get("MAX_CAPS_RATIO", 0.7):
+            return True
+
+    return False
 
 
 # Item generation constants
@@ -185,6 +273,7 @@ def _send_discord_notification(title, description, color=0x00FF00):
             f"Failed to send notification to Discord: {response.status_code} {response.text}"
         )
 
+
 def send_discord_notification(title, description, color=0x00FF00):
     Thread(target=_send_discord_notification, args=(title, description, color)).start()
 
@@ -192,17 +281,13 @@ def send_discord_notification(title, description, color=0x00FF00):
 # Authentication middleware
 @app.before_request
 def authenticate_user():
-    if (
-        request.method == "OPTIONS"
-        or request.endpoint
-        in [
-            "register_endpoint",
-            "login_endpoint",
-            "index",
-            "static_file",
-            "stats_endpoint",
-        ]
-    ):
+    if request.method == "OPTIONS" or request.endpoint in [
+        "register_endpoint",
+        "login_endpoint",
+        "index",
+        "static_file",
+        "stats_endpoint",
+    ]:
         return
 
     auth_header = request.headers.get("Authorization")
@@ -282,19 +367,20 @@ def update_item(item_id):
         },
     )
 
+
 def update_pet(pet_id):
     pet = pets_collection.find_one({"id": pet_id})
-        
+
     last_fed = pet["last_fed"]
-    
-    if isinstance(last_fed, (int, float)):  
+
+    if isinstance(last_fed, (int, float)):
         last_fed = datetime.datetime.fromtimestamp(last_fed)
-    
+
     today = datetime.datetime.now()
     yesterday = today - datetime.timedelta(days=1)
     two_days_ago = today - datetime.timedelta(days=2)
     three_days_ago = today - datetime.timedelta(days=3)
-    
+
     if last_fed.date() == today.date():
         pets_collection.update_one({"id": pet_id}, {"$set": {"health": "healthy"}})
     elif last_fed.date() == yesterday.date():
@@ -348,11 +434,9 @@ def update_account(username):
         users_collection.update_one(
             {"username": username}, {"$set": {"2fa_enabled": False}}
         )
-        
+
     if "pets" not in user:
-        users_collection.update_one(
-            {"username": username}, {"$set": {"pets": []}}
-        )
+        users_collection.update_one({"username": username}, {"$set": {"pets": []}})
 
     if user.get("banned_until", None) and (
         user["banned_until"] < time.time() and user["banned_until"] != 0
@@ -372,7 +456,7 @@ def update_account(username):
 
     for item_id in user["items"]:
         update_item(item_id)
-        
+
     for pet_id in user["pets"]:
         update_pet(pet_id)
 
@@ -484,6 +568,7 @@ def generate_item(owner):
         "created_at": int(time.time()),
     }
 
+
 def generate_pet(owner):
     return {
         "id": str(uuid4()),
@@ -594,11 +679,19 @@ def register(username, password, ip):
     # Check recent account creations from this IP
     current_time = time.time()
     recent_attempts = account_creation_attempts.count_documents(
-        {"ip": ip, "timestamp": {"$gt": current_time - ACCOUNT_CREATION_TIME_WINDOW}}
+        {
+            "ip": ip,
+            "timestamp": {
+                "$gt": current_time
+                - get_automod_config()["ACCOUNT_CREATION_TIME_WINDOW"]
+            },
+        }
     )
 
-    if recent_attempts >= ACCOUNT_CREATION_THRESHOLD:
-        blocked_until = current_time + ACCOUNT_CREATION_BLOCK_DURATION
+    if recent_attempts >= get_automod_config()["ACCOUNT_CREATION_THRESHOLD"]:
+        blocked_until = (
+            current_time + get_automod_config()["ACCOUNT_CREATION_BLOCK_DURATION"]
+        )
         blocked_ips.update_one(
             {"ip": ip},
             {"$set": {"blocked_until": blocked_until, "timestamp": current_time}},
@@ -694,8 +787,29 @@ def register(username, password, ip):
         )
 
 
-def login(username, password, code=None, token=None):
+def login(username, password, ip, code=None, token=None):
     user = users_collection.find_one({"username": username})
+
+    config = get_automod_config()
+    recent_fails = failed_logins.count_documents(
+        {"ip": ip, "timestamp": {"$gt": time.time() - config["FAILED_LOGIN_WINDOW"]}}
+    )
+
+    if recent_fails >= config["FAILED_LOGIN_THRESHOLD"]:
+        blocked_until = time.time() + config["FAILED_LOGIN_WINDOW"]
+        blocked_ips.insert_one(
+            {
+                "ip": ip,
+                "subnet": ".".join(ip.split(".")[:3]) + ".0/24",
+                "blocked_until": blocked_until,
+                "reason": "Too many failed login attempts",
+            }
+        )
+        return (
+            jsonify({"error": "Too many failed attempts", "code": "login-locked"}),
+            429,
+        )
+
     if not user or not check_password_hash(user["password_hash"], password):
         return (
             jsonify(
@@ -906,6 +1020,7 @@ def create_item(username):
         {k: v for k, v in new_item.items() if k != "_id" and k != "item_secret"}
     )
 
+
 def buy_pet(username):
     user = users_collection.find_one({"username": username}, {"_id": 0})
     if not user:
@@ -913,7 +1028,7 @@ def buy_pet(username):
 
     if user["tokens"] < 100:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
-      
+
     pet = generate_pet(username)
     pets_collection.insert_one(pet)
     users_collection.update_one(
@@ -928,6 +1043,7 @@ def buy_pet(username):
     )
 
     return jsonify(pet)
+
 
 def feed_pet(username, pet_id):
     user = users_collection.find_one({"username": username}, {"_id": 0})
@@ -1603,7 +1719,7 @@ def parse_command(username, command, room_name):
     user_type = user.get("type")
     is_admin = user_type == "admin"
     is_mod = user_type == "mod" or is_admin
-  
+
     command_parts = command[1:].split(" ")
     command, *args = command_parts
 
@@ -1615,7 +1731,9 @@ def parse_command(username, command, room_name):
         messages_collection.delete_many(
             {"room": room_name, "username": target_username}
         )
-        system_message = f"Deleted messages from <b>{target_username}</b> in <b>{room_name}</b>"
+        system_message = (
+            f"Deleted messages from <b>{target_username}</b> in <b>{room_name}</b>"
+        )
     elif command == "delete_many" and len(args) == 1 and is_admin:
         amount = args[0]
         try:
@@ -1635,7 +1753,9 @@ def parse_command(username, command, room_name):
         target_username, duration, *reason_parts = args
         reason = " ".join(reason_parts)
         ban_user(target_username, reason, duration)
-        system_message = f"Banned <b>{target_username}</b> for <b>{reason}</b> (<b>{duration}</b>)"
+        system_message = (
+            f"Banned <b>{target_username}</b> for <b>{reason}</b> (<b>{duration}</b>)"
+        )
     elif command == "mute" and len(args) == 2 and is_mod:
         target_username, duration = args
         mute_user(target_username, duration)
@@ -1720,16 +1840,50 @@ def send_message(room_name, message_content, username, ip):
     user_message_count = message_attempts.count_documents(
         {
             "username": username,
-            "timestamp": {"$gt": current_time - MESSAGE_SPAM_TIME_WINDOW},
+            "timestamp": {
+                "$gt": current_time - get_automod_config()["MESSAGE_SPAM_TIME_WINDOW"]
+            },
         }
     )
 
-    if user_message_count >= MESSAGE_SPAM_THRESHOLD:
-        mute_user(username, MESSAGE_SPAM_MUTE_DURATION)
+    config = get_automod_config()
+
+    # Content checks
+    if check_content_spam(message_content):
+        messages_collection.delete_many(
+            {"username": username, "timestamp": {"$gt": time.time() - 300}}
+        )
+        mute_duration = config["ESCALATING_MUTES"][0]
+        user_history.insert_one(
+            {
+                "username": username,
+                "type": "content_spam",
+                "timestamp": time.time(),
+                "details": message_content[:100],
+            }
+        )
+        return jsonify({"error": "Message blocked", "code": "content-spam"}), 403
+
+    if user_message_count >= get_automod_config()["MESSAGE_SPAM_THRESHOLD"]:
+        user_join_time = user.get("join_time", current_time)
+        is_new_user = (current_time - user_join_time) < get_automod_config()[
+            "MIN_ACCOUNT_AGE"
+        ]
+
+        mute_duration = (
+            get_automod_config()["NEW_USER_MESSAGE_SPAM_MUTE_DURATION"]
+            if is_new_user
+            else get_automod_config()["MESSAGE_SPAM_MUTE_DURATION"]
+        )
+        mute_user(username, mute_duration)
+
         delete_result = messages_collection.delete_many(
             {
                 "username": username,
-                "timestamp": {"$gt": current_time - MESSAGE_SPAM_TIME_WINDOW},
+                "timestamp": {
+                    "$gt": current_time
+                    - get_automod_config()["MESSAGE_SPAM_TIME_WINDOW"]
+                },
             }
         )
         system_message = {
@@ -1740,7 +1894,7 @@ def send_message(room_name, message_content, username, ip):
                 f"<p>{user_message_count + 1}x Message Spamming</p>"
                 f"<p>Username: <b>{username}</b></p>"
                 f"<p>Number: <b>{user_message_count + 1}</b></p>"
-                f"<p>Status: <b>{delete_result.deleted_count}</b> messages deleted, <b>{username}</b> muted for 5m</p>"
+                f"<p>Status: <b>{delete_result.deleted_count}</b> messages deleted, <b>{username}</b> muted for {'10m' if is_new_user else '5m'}</p>"
             ),
             "timestamp": current_time,
             "type": "system",
@@ -1803,7 +1957,7 @@ def get_messages(room_name, username):
     user = users_collection.find_one({"username": username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-  
+
     if not room_name:
         return (
             jsonify({"error": "Missing room parameter", "code": "missing-parameters"}),
@@ -1814,6 +1968,7 @@ def get_messages(room_name, username):
         "timestamp", ASCENDING
     )
     return jsonify({"messages": list(messages)})
+
 
 def get_stats():
     accounts_cursor = users_collection.find()
@@ -1909,7 +2064,7 @@ def account_endpoint():
 
     items = items_collection.find({"id": {"$in": user["items"]}}, {"_id": 0})
     user_items = [item for item in items]
-    
+
     pets = pets_collection.find({"id": {"$in": user["pets"]}}, {"_id": 0})
     user_pets = [pet for pet in pets]
 
@@ -1946,10 +2101,12 @@ def delete_account_endpoint():
 def create_item_endpoint():
     return create_item(request.username)
 
+
 @app.route("/api/buy_pet", methods=["POST"])
 @requires_unbanned
 def buy_pet_endpoint():
     return buy_pet(request.username)
+
 
 @app.route("/api/feed_pet", methods=["POST"])
 @requires_unbanned
@@ -1958,6 +2115,7 @@ def feed_pet_endpoint():
     pet_id = data.get("pet_id")
 
     return feed_pet(request.username, pet_id)
+
 
 @app.route("/api/mine_tokens", methods=["POST"])
 @requires_unbanned
