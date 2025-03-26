@@ -1603,20 +1603,25 @@ def set_banner(banner):
     return jsonify({"success": True})
 
 
-def parse_command(command, room_name):
+def parse_command(username, command, room_name):
+    user = users_collection.find_one({"username": username})
+    user_type = user.get("type")
+    is_admin = user_type == "admin"
+    is_mod = user_type == "mod" or is_admin
+  
     command_parts = command[1:].split(" ")
     command, *args = command_parts
 
-    if command == "clear_chat":
+    if command == "clear_chat" and is_admin:
         messages_collection.delete_many({"room": room_name})
         system_message = f"Cleared chat in {room_name}"
-    elif command == "clear_user" and len(args) == 1:
+    elif command == "clear_user" and len(args) == 1 and is_admin:
         target_username = args[0]
         messages_collection.delete_many(
             {"room": room_name, "username": target_username}
         )
         system_message = f"Deleted messages from {target_username} in {room_name}"
-    elif command == "delete_many" and len(args) == 1:
+    elif command == "delete_many" and len(args) == 1 and is_admin:
         amount = args[0]
         try:
             amount = int(amount)
@@ -1631,26 +1636,26 @@ def parse_command(command, room_name):
         except ValueError:
             system_message = "Invalid amount specified for deletion"
 
-    elif command == "ban" and len(args) >= 3:
+    elif command == "ban" and len(args) >= 3 and is_admin:
         target_username, duration, *reason_parts = args
         reason = " ".join(reason_parts)
         ban_user(target_username, reason, duration)
         system_message = f"Banned {target_username} for {reason} ({duration})"
-    elif command == "mute" and len(args) == 2:
+    elif command == "mute" and len(args) == 2 and is_mod:
         target_username, duration = args
         mute_user(target_username, duration)
         system_message = f"Muted {target_username} for {duration}"
-    elif command == "unban" and len(args) == 1:
+    elif command == "unban" and len(args) == 1 and is_admin:
         target_username = args[0]
         users_collection.update_one(
             {"username": target_username}, {"$set": {"banned": False}}
         )
         system_message = f"Unbanned {target_username}"
-    elif command == "unmute" and len(args) == 1:
+    elif command == "unmute" and len(args) == 1 and is_mod:
         target_username = args[0]
         unmute_user(target_username)
         system_message = f"Unmuted {target_username}"
-    elif command == "sudo" and len(args) >= 2:
+    elif command == "sudo" and len(args) >= 2 and is_admin:
         sudo_username = args[0]
         sudo_message = " ".join(args[1:])
         sudo_user = users_collection.find_one({"username": sudo_username})
@@ -1667,7 +1672,7 @@ def parse_command(command, room_name):
                     "type": sudo_user["type"],
                 }
             )
-    elif command == "list_banned":
+    elif command == "list_banned" and is_mod:
         banned_users = users_collection.find({"banned": True})
 
         if len(list(banned_users)) == 0:
@@ -1680,16 +1685,8 @@ def parse_command(command, room_name):
                 ]
             )
             system_message = "Banned users:\n" + banned_users_list
-    elif command == "list_frozen":
-        frozen_users = users_collection.find({"frozen": True})
-
-        if len(list(frozen_users)) == 0:
-            system_message = "Nobody is frozen."
-        else:
-            frozen_users_list = "\n".join([user["username"] for user in frozen_users])
-            system_message = "Frozen users:\n" + frozen_users_list
-    elif command == "help":
-        system_message = "Available commands: /clear_chat, /clear_user <username>, /delete_many <amount>, /ban <username> <duration> <reason>, /mute <username> <duration>, /unban <username>, /unmute <username>, /sudo <username> <message>, /list_banned, /list_frozen, /help"
+    elif command == "help" and is_mod:
+        system_message = "Available commands: /clear_chat (Admin), /clear_user <username> (Admin), /delete_many <amount> (Admin), /ban <username> <duration> <reason> (Admin), /mute <username> <duration> (Mod), /unban <username> (Admin), /unmute <username> (Mod), /sudo <username> <message> (Admin), /list_banned (Mod), /help (Mod)"
     else:
         system_message = "Invalid command"
 
@@ -1760,8 +1757,8 @@ def send_message(room_name, message_content, username, ip):
         return jsonify({"error": "Message too long", "code": "message-too-long"}), 400
 
     system_message = None
-    if user["type"] == "admin" and sanitized_message.startswith("/"):
-        system_message = parse_command(sanitized_message, room_name)
+    if user["type"] in ["admin", "mod"] and sanitized_message.startswith("/"):
+        system_message = parse_command(username, sanitized_message, room_name)
     else:
         messages_collection.insert_one(
             {
