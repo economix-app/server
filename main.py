@@ -185,16 +185,6 @@ def _send_discord_notification(title, description, color=0x00FF00):
             f"Failed to send notification to Discord: {response.status_code} {response.text}"
         )
 
-    log_message = {
-        "id": str(uuid4()),
-        "room": "log",
-        "username": "Logs",
-        "message": f"{title}: {description}",
-        "timestamp": time.time(),
-        "type": "system",
-    }
-    messages_collection.insert_one(log_message)
-
 def send_discord_notification(title, description, color=0x00FF00):
     Thread(target=_send_discord_notification, args=(title, description, color)).start()
 
@@ -626,7 +616,7 @@ def register(username, password, ip):
         )
         system_message = {
             "id": str(uuid4()),
-            "room": "log",
+            "room": "global",
             "username": "AutoMod",
             "message": f"{recent_attempts + 1}x Account Creation Spamming\nIP: {ip}\nNumber: {recent_attempts + 1}\nStatus: Accounts banned, account creation stopped for that IP for 15m",
             "timestamp": current_time,
@@ -1725,7 +1715,7 @@ def send_message(room_name, message_content, username, ip):
         )
         system_message = {
             "id": str(uuid4()),
-            "room": "log",
+            "room": "global",
             "username": "AutoMod",
             "message": f"{user_message_count + 1}x Message Spamming\nUsername: {username}\nNumber: {user_message_count + 1}\nStatus: Messages deleted, user muted for 5m",
             "timestamp": current_time,
