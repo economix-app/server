@@ -1,0 +1,10 @@
+flask
+flask_cors
+werkzeug
+pymongo
+gunicorn
+pyotp
+qrcode
+pillow
+better_profanity
+requests
