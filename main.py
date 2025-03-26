@@ -117,7 +117,7 @@ AUTOMOD_CONFIG = {
 }
 
 automod_config.update_one(
-    {"key": "main"}, {"$setOnInsert": AUTOMOD_CONFIG}, upsert=True
+    {"key": "main"}, {"$set": AUTOMOD_CONFIG}, upsert=True
 )
 
 
