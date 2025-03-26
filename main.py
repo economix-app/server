@@ -54,7 +54,6 @@ db = client.get_database(os.environ.get("MONGODB_DB"))
 users_collection = db.users
 items_collection = db.items
 messages_collection = db.messages
-rooms_collection = db.rooms
 item_meta_collection = db.item_meta
 misc_collection = db.misc
 pets_collection = db.pets
@@ -63,7 +62,6 @@ pets_collection = db.pets
 users_collection.create_index([("username", ASCENDING)], unique=True)
 items_collection.create_index([("id", ASCENDING), ("owner", ASCENDING)])
 messages_collection.create_index([("room", ASCENDING), ("timestamp", ASCENDING)])
-rooms_collection.create_index([("name", ASCENDING)], unique=True)
 item_meta_collection.create_index([("id", ASCENDING)])
 misc_collection.create_index([("type", ASCENDING)])
 pets_collection.create_index([("id", ASCENDING)], unique=True)
@@ -1618,7 +1616,7 @@ def parse_command(command, room_name):
     return system_message
 
 
-def send_message(room_name, message_content, username, recipient=None):
+def send_message(room_name, message_content, username):
     user = users_collection.find_one({"username": username})
     if user["muted"]:
         return jsonify({"error": "You are muted", "code": "user-muted"}), 400
@@ -1632,17 +1630,6 @@ def send_message(room_name, message_content, username, recipient=None):
     if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room_name):
         return jsonify({"error": "Invalid room name", "code": "invalid-room"}), 400
 
-    if room_name == "staff" and user["type"] not in ["admin", "mod"]:
-        return jsonify({"error": "Unauthorized"}), 403
-    if room_name == "log":
-        return jsonify({"error": "Unauthorized"}), 403
-
-    if room_name == "dm":
-        if not recipient:
-            return jsonify({"error": "Recipient required for DM"}), 400
-        if not users_collection.find_one({"username": recipient}):
-            return jsonify({"error": "Recipient not found"}), 404
-
     sanitized_message = html.escape(message_content.strip())
     sanitized_message = profanity.censor(sanitized_message)
     if len(sanitized_message) == 0:
@@ -1652,9 +1639,6 @@ def send_message(room_name, message_content, username, recipient=None):
         )
     if len(sanitized_message) > 100:
         return jsonify({"error": "Message too long", "code": "message-too-long"}), 400
-
-    if not rooms_collection.find_one({"name": room_name}):
-        rooms_collection.insert_one({"name": room_name})
 
     system_message = None
     if user["type"] == "admin" and sanitized_message.startswith("/"):
@@ -1667,7 +1651,6 @@ def send_message(room_name, message_content, username, recipient=None):
                 "username": username,
                 "message": sanitized_message,
                 "timestamp": time.time(),
-                "recipient": recipient,
                 "type": user["type"],
             }
         )
@@ -1696,31 +1679,11 @@ def get_messages(room_name, username):
             jsonify({"error": "Missing room parameter", "code": "missing-parameters"}),
             400,
         )
-        
-    if room_name == "staff" and user["type"] not in ["admin", "mod"]:
-        return jsonify({"error": "Unauthorized"}), 403
-    
-    if room_name == "log" and user["type"] not in ["admin"]:
-        return jsonify({"error": "Unauthorized"}), 403
 
     messages = messages_collection.find({"room": room_name}, {"_id": 0}).sort(
         "timestamp", ASCENDING
     )
     return jsonify({"messages": list(messages)})
-
-def get_dms(username):
-    user = users_collection.find_one({"username": username})
-    if not user:
-        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-
-    user_type = user["type"]
-  
-    query = {"room": "dm"}
-    if user_type not in ["admin", "mod"]:
-        query["$or"] = [{"username": username}, {"recipient": username}]
-
-    dms = messages_collection.find(query, {"_id": 0}).sort("timestamp", ASCENDING)
-    return jsonify({"messages": list(dms)})
 
 def get_stats():
     accounts_cursor = users_collection.find()
