@@ -21,6 +21,7 @@ from better_profanity import profanity
 import requests
 import datetime
 from threading import Thread
+import schedule
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -257,6 +258,22 @@ def parse_time(length):
 
     return end_time
 
+def send_system_message():
+    messages_collection.insert_one(
+        {
+            "id": str(uuid4()),
+            "room": "global",
+            "username": "Announcement",
+            "message": f"""
+            Everyone, remember to follow the rules to enjoy a safe and enjoyable experience!
+            <b> - proplayer919 & the Economix team</b>
+            """,
+            "timestamp": time.time(),
+            "type": "system",
+        }
+    )
+
+schedule.every(5).minutes.do(send_system_message)
 
 def _send_discord_notification(title, description, color=0x00FF00):
     webhook_url = DISCORD_WEBHOOK
