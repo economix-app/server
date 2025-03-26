@@ -1683,18 +1683,18 @@ def parse_command(username, command, room_name):
     elif command == "help" and is_mod:
         system_message = """
         <h3>Available Commands:</h3>
-        <h4>Admin</p>
-        <p><b>/clear_chat</b> - Clears all messages in the current room</p>
-        <p><b>/clear_user [username]</b> - Clears all messages from a specific user in the current room</p>
-        <p><b>/delete_many [amount]</b> - Deletes that many messages from the current room</p>
-        <p><b>/ban [username] [duration] [reason]</b> - Bans the user with the supplied parameters</p>
-        <p><b>/unban [username]</b> - Unbans the user</p>
-        <p><b>/sudo [username] [message]</b> - Sends a message as that user</p>
-        <h4>Admin & Mod</p>
-        <p><b>/mute [username] [duration]</b> - Mutes the user with the supplied parameters</p>
-        <p><b>/unmute [username]</b> - Unmutes the user</p>
-        <p><b>/list_banned</b> - Lists all banned users</p>
-        <p><b>/help</b> - Lists all available commands</p>
+        <h4>Admin</h4>
+        <p>/clear_chat - Clears all messages in the current room</p>
+        <p>/clear_user [username] - Clears all messages from a specific user in the current room</p>
+        <p>/delete_many [amount] - Deletes that many messages from the current room</p>
+        <p>/ban [username] [duration] [reason] - Bans the user with the supplied parameters</p>
+        <p>/unban [username] - Unbans the user</p>
+        <p>/sudo [username] [message] - Sends a message as that user</p>
+        <h4>Admin & Mod</h4>
+        <p>/mute [username] [duration] - Mutes the user with the supplied parameters</p>
+        <p>/unmute [username] - Unmutes the user</p>
+        <p>/list_banned - Lists all banned users</p>
+        <p>/help - Lists all available commands</p>
         """
     else:
         system_message = "Invalid command"
