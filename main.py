@@ -708,7 +708,7 @@ def register(username, password, ip):
 
     if (
         recent_attempts >= get_automod_config()["ACCOUNT_CREATION_THRESHOLD"]
-        and get_automod_config()["ENABLED"]
+        and get_automod_config().get("ENABLED", True)
     ):
         blocked_until = (
             current_time + get_automod_config()["ACCOUNT_CREATION_BLOCK_DURATION"]
@@ -816,7 +816,7 @@ def login(username, password, ip, code=None, token=None):
         {"ip": ip, "timestamp": {"$gt": time.time() - config["FAILED_LOGIN_WINDOW"]}}
     )
 
-    if recent_fails >= config["FAILED_LOGIN_THRESHOLD"] and config["ENABLED"]:
+    if recent_fails >= config["FAILED_LOGIN_THRESHOLD"] and config.get("ENABLED", True):
         blocked_until = time.time() + config["FAILED_LOGIN_WINDOW"]
         blocked_ips.insert_one(
             {
@@ -1822,7 +1822,7 @@ def parse_command(username, command, room_name):
             )
             system_message = "Banned users:\n" + banned_users_list
     elif command == "toggle_automod" and is_admin:
-        current_state = get_automod_config()["ENABLED"]
+        current_state = get_automod_config().get("ENABLED", True)
         new_state = not current_state
         update_automod_config({"ENABLED": new_state})
         
@@ -1877,7 +1877,7 @@ def send_message(room_name, message_content, username, ip):
     config = get_automod_config()
 
     # Content checks
-    if check_content_spam(message_content) and config["ENABLED"]:
+    if check_content_spam(message_content) and config.get("ENABLED", True):
         messages_collection.delete_many(
             {"username": username, "timestamp": {"$gt": time.time() - 300}}
         )
@@ -1894,7 +1894,7 @@ def send_message(room_name, message_content, username, ip):
 
     if (
         user_message_count >= get_automod_config()["MESSAGE_SPAM_THRESHOLD"]
-        and config["ENABLED"]
+        and get_automod_config().get("ENABLED", True)
     ):
         user_join_time = user.get("join_time", current_time)
         is_new_user = (current_time - user_join_time) < get_automod_config()[
