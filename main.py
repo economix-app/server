@@ -122,7 +122,7 @@ automod_config.update_one(
 
 
 def get_automod_config():
-    return automod_config.find_one({"key": "main"}) or AUTOMOD_CONFIG
+    return AUTOMOD_CONFIG
 
 
 def update_automod_config(new_settings):
