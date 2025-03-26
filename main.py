@@ -73,6 +73,7 @@ user_history = db.user_history
 
 # AutoMod
 AUTOMOD_CONFIG = {
+    "ENABLED": True,
     "ACCOUNT_CREATION_THRESHOLD": 7,
     "ACCOUNT_CREATION_TIME_WINDOW": 1 * 60,  # 1 minute
     "MESSAGE_SPAM_THRESHOLD": 5,
@@ -688,7 +689,10 @@ def register(username, password, ip):
         }
     )
 
-    if recent_attempts >= get_automod_config()["ACCOUNT_CREATION_THRESHOLD"]:
+    if (
+        recent_attempts >= get_automod_config()["ACCOUNT_CREATION_THRESHOLD"]
+        and get_automod_config()["ENABLED"]
+    ):
         blocked_until = (
             current_time + get_automod_config()["ACCOUNT_CREATION_BLOCK_DURATION"]
         )
@@ -795,7 +799,7 @@ def login(username, password, ip, code=None, token=None):
         {"ip": ip, "timestamp": {"$gt": time.time() - config["FAILED_LOGIN_WINDOW"]}}
     )
 
-    if recent_fails >= config["FAILED_LOGIN_THRESHOLD"]:
+    if recent_fails >= config["FAILED_LOGIN_THRESHOLD"] and config["ENABLED"]:
         blocked_until = time.time() + config["FAILED_LOGIN_WINDOW"]
         blocked_ips.insert_one(
             {
@@ -1800,6 +1804,12 @@ def parse_command(username, command, room_name):
                 ]
             )
             system_message = "Banned users:\n" + banned_users_list
+    elif command == "toggle_automod" and is_admin:
+        current_state = get_automod_config()["ENABLED"]
+        new_state = not current_state
+        update_automod_config({"ENABLED": new_state})
+        
+        system_message = f"Automod has been <b>{'enabled' if new_state else 'disabled'}</b>"
     elif command == "help" and is_mod:
         system_message = """
         <h3>Available Commands:</h3>
@@ -1810,6 +1820,7 @@ def parse_command(username, command, room_name):
         <p>/ban [username] [duration] [reason] - Bans the user with the supplied parameters</p>
         <p>/unban [username] - Unbans the user</p>
         <p>/sudo [username] [message] - Sends a message as that user</p>
+        <p>/toggle_automod - Toggles automod on or off</p>
         <h4>Admin & Mod</h4>
         <p>/mute [username] [duration] - Mutes the user with the supplied parameters</p>
         <p>/unmute [username] - Unmutes the user</p>
@@ -1849,7 +1860,7 @@ def send_message(room_name, message_content, username, ip):
     config = get_automod_config()
 
     # Content checks
-    if check_content_spam(message_content):
+    if check_content_spam(message_content) and config["ENABLED"]:
         messages_collection.delete_many(
             {"username": username, "timestamp": {"$gt": time.time() - 300}}
         )
@@ -1864,7 +1875,10 @@ def send_message(room_name, message_content, username, ip):
         )
         return jsonify({"error": "Message blocked", "code": "content-spam"}), 403
 
-    if user_message_count >= get_automod_config()["MESSAGE_SPAM_THRESHOLD"]:
+    if (
+        user_message_count >= get_automod_config()["MESSAGE_SPAM_THRESHOLD"]
+        and config["ENABLED"]
+    ):
         user_join_time = user.get("join_time", current_time)
         is_new_user = (current_time - user_join_time) < get_automod_config()[
             "MIN_ACCOUNT_AGE"
