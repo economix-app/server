@@ -50,6 +50,21 @@ profanity.load_censor_words()
 client = MongoClient(os.environ.get("MONGODB_URI"), maxPoolSize=50, connect=False)
 db = client.get_database(os.environ.get("MONGODB_DB"))
 
+# Configuration constants
+ITEM_CREATE_COOLDOWN = 1 * 60
+TOKEN_MINE_COOLDOWN = 5 * 60
+MAX_ITEM_PRICE = 1000000000000
+MIN_ITEM_PRICE = 1
+DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
+
+# AutoMod
+ACCOUNT_CREATION_THRESHOLD = 7
+ACCOUNT_CREATION_TIME_WINDOW = 1 * 60  # 1 minute
+MESSAGE_SPAM_THRESHOLD = 5
+MESSAGE_SPAM_TIME_WINDOW = 3  # 5 seconds
+MESSAGE_SPAM_MUTE_DURATION = "5m"
+ACCOUNT_CREATION_BLOCK_DURATION = 5 * 60  # 5 minutes
+
 # Collections
 users_collection = db.users
 items_collection = db.items
@@ -57,6 +72,9 @@ messages_collection = db.messages
 item_meta_collection = db.item_meta
 misc_collection = db.misc
 pets_collection = db.pets
+account_creation_attempts = db.account_creation_attempts
+message_attempts = db.message_attempts
+blocked_ips = db.blocked_ips
 
 # Create indexes
 users_collection.create_index([("username", ASCENDING)], unique=True)
@@ -65,13 +83,15 @@ messages_collection.create_index([("room", ASCENDING), ("timestamp", ASCENDING)]
 item_meta_collection.create_index([("id", ASCENDING)])
 misc_collection.create_index([("type", ASCENDING)])
 pets_collection.create_index([("id", ASCENDING)], unique=True)
+account_creation_attempts.create_index(
+    [("timestamp", ASCENDING)], expireAfterSeconds=ACCOUNT_CREATION_TIME_WINDOW
+)
+message_attempts.create_index(
+    [("timestamp", ASCENDING)], expireAfterSeconds=MESSAGE_SPAM_TIME_WINDOW
+)
+blocked_ips.create_index([("blocked_until", ASCENDING)], expireAfterSeconds=0)
+blocked_ips.create_index([("ip", ASCENDING)])
 
-# Configuration constants
-ITEM_CREATE_COOLDOWN = 1 * 60
-TOKEN_MINE_COOLDOWN = 5 * 60
-MAX_ITEM_PRICE = 1000000000000
-MIN_ITEM_PRICE = 1
-DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
 
 # Item generation constants
 try:
@@ -559,13 +579,70 @@ def get_muted_users():
     return jsonify({"usernames": usernames})
 
 
-def register(username, password):
+def register(username, password, ip):
     if not username or not password:
         return (
             jsonify(
                 {"error": "Missing username or password", "code": "missing-credentials"}
             ),
             400,
+        )
+
+    # Check if IP is blocked
+    blocked_ip = blocked_ips.find_one({"ip": ip, "blocked_until": {"$gt": time.time()}})
+    if blocked_ip:
+        return (
+            jsonify(
+                {
+                    "error": "Account creation is temporarily blocked for your IP.",
+                    "code": "ip-blocked",
+                }
+            ),
+            429,
+        )
+
+    # Check recent account creations from this IP
+    current_time = time.time()
+    recent_attempts = account_creation_attempts.count_documents(
+        {"ip": ip, "timestamp": {"$gt": current_time - ACCOUNT_CREATION_TIME_WINDOW}}
+    )
+
+    if recent_attempts >= ACCOUNT_CREATION_THRESHOLD:
+        blocked_until = current_time + ACCOUNT_CREATION_BLOCK_DURATION
+        blocked_ips.update_one(
+            {"ip": ip},
+            {"$set": {"blocked_until": blocked_until, "timestamp": current_time}},
+            upsert=True,
+        )
+        users_collection.update_many(
+            {"creation_ip": ip},
+            {
+                "$set": {
+                    "banned": True,
+                    "banned_until": blocked_until,
+                    "banned_reason": "AutoMod: Account creation spamming",
+                }
+            },
+        )
+        system_message = {
+            "id": str(uuid4()),
+            "room": "log",
+            "username": "AutoMod",
+            "message": f"{recent_attempts + 1}x Account Creation Spamming\nIP: {ip}\nNumber: {recent_attempts + 1}\nStatus: Accounts banned, account creation stopped for that IP for 15m",
+            "timestamp": current_time,
+            "type": "system",
+        }
+        messages_collection.insert_one(system_message)
+        send_discord_notification(
+            "AutoMod Action",
+            f"Blocked IP {ip} for account creation spamming. Banned {recent_attempts + 1} accounts.",
+            color=0xFF0000,
+        )
+        return (
+            jsonify(
+                {"error": "Account creation spamming detected.", "code": "account-spam"}
+            ),
+            429,
         )
 
     # Sanitize and validate username
@@ -606,8 +683,11 @@ def register(username, password):
                 "2fa_enabled": False,
                 "inventory_visibility": "private",
                 "pets": [],
+                "creation_ip": ip,
             }
         )
+
+        account_creation_attempts.insert_one({"ip": ip, "timestamp": current_time})
 
         send_discord_notification(f"New user registered", f"Username: {username}")
 
@@ -1616,7 +1696,7 @@ def parse_command(command, room_name):
     return system_message
 
 
-def send_message(room_name, message_content, username):
+def send_message(room_name, message_content, username, ip):
     user = users_collection.find_one({"username": username})
     if user["muted"]:
         return jsonify({"error": "You are muted", "code": "user-muted"}), 400
@@ -1629,6 +1709,45 @@ def send_message(room_name, message_content, username):
 
     if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room_name):
         return jsonify({"error": "Invalid room name", "code": "invalid-room"}), 400
+
+    current_time = time.time()
+    user_message_count = message_attempts.count_documents(
+        {
+            "username": username,
+            "timestamp": {"$gt": current_time - MESSAGE_SPAM_TIME_WINDOW},
+        }
+    )
+
+    if user_message_count >= MESSAGE_SPAM_THRESHOLD:
+        mute_user(username, MESSAGE_SPAM_MUTE_DURATION)
+        delete_result = messages_collection.delete_many(
+            {
+                "username": username,
+                "timestamp": {"$gt": current_time - MESSAGE_SPAM_TIME_WINDOW},
+            }
+        )
+        system_message = {
+            "id": str(uuid4()),
+            "room": "log",
+            "username": "AutoMod",
+            "message": f"{user_message_count + 1}x Message Spamming\nUsername: {username}\nNumber: {user_message_count + 1}\nStatus: Messages deleted, user muted for 5m",
+            "timestamp": current_time,
+            "type": "system",
+        }
+        messages_collection.insert_one(system_message)
+        send_discord_notification(
+            "AutoMod Action",
+            f"Muted {username} for message spamming. Deleted {delete_result.deleted_count} messages.",
+            color=0xFF0000,
+        )
+        return (
+            jsonify({"error": "Message spamming detected", "code": "message-spam"}),
+            429,
+        )
+
+    message_attempts.insert_one(
+        {"username": username, "ip": ip, "timestamp": current_time}
+    )
 
     sanitized_message = html.escape(message_content.strip())
     sanitized_message = profanity.censor(sanitized_message)
@@ -1729,8 +1848,9 @@ def register_endpoint():
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
+    ip = request.remote_addr
 
-    return register(username, password)
+    return register(username, password, ip)
 
 
 @app.route("/api/login", methods=["POST"])
@@ -1880,8 +2000,9 @@ def send_message_endpoint():
     data = request.get_json()
     message = data.get("message")
     room = data.get("room", "global")
+    ip = request.remote_addr
 
-    return send_message(room, message, request.username)
+    return send_message(room, message, request.username, ip)
 
 
 @app.route("/api/get_messages", methods=["GET"])
