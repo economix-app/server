@@ -802,11 +802,11 @@ def login(username, password, ip, code=None, token=None):
 
     config = get_automod_config()
     recent_fails = failed_logins.count_documents(
-        {"ip": ip, "timestamp": {"$gt": time.time() - config["FAILED_LOGIN_WINDOW"]}}
+        {"ip": ip, "timestamp": {"$gt": time.time() - config.get("FAILED_LOGIN_WINDOW")}}
     )
 
-    if recent_fails >= config["FAILED_LOGIN_THRESHOLD"] and config.get("ENABLED", True):
-        blocked_until = time.time() + config["FAILED_LOGIN_WINDOW"]
+    if recent_fails >= config.get("FAILED_LOGIN_THRESHOLD") and config.get("ENABLED", True):
+        blocked_until = time.time() + config.get("FAILED_LOGIN_WINDOW")
         blocked_ips.insert_one(
             {
                 "ip": ip,
@@ -1863,7 +1863,7 @@ def send_message(room_name, message_content, username, ip):
         messages_collection.delete_many(
             {"username": username, "timestamp": {"$gt": time.time() - 300}}
         )
-        mute_duration = config["ESCALATING_MUTES"][0]
+        mute_duration = config.get("ESCALATING_MUTES")[0]
         user_history.insert_one(
             {
                 "username": username,
