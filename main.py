@@ -1045,12 +1045,9 @@ def buy_pet(username):
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
-<<<<<<< HEAD
-=======
     if len(user["pets"]) >= 1:
         return jsonify({"error": "User already has a pet", "code": "user-already-has-pet"}), 400
 
->>>>>>> 13ab175 (make it so you can only have one pet)
     if user["tokens"] < 100:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
 
