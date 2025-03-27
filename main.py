@@ -247,6 +247,7 @@ def parse_time(length):
 
     return end_time
 
+
 def send_system_message():
     messages_collection.insert_one(
         {
@@ -262,7 +263,9 @@ def send_system_message():
         }
     )
 
+
 schedule.every(5).minutes.do(send_system_message)
+
 
 def _send_discord_notification(title, description, color=0x00FF00):
     webhook_url = DISCORD_WEBHOOK
@@ -463,7 +466,7 @@ def update_account(username):
 
     for item_id in user["items"]:
         update_item(item_id)
-        
+
     if len(user["pets"]) > 1:
         refund_amount = (len(user["pets"]) - 1) * 100
         users_collection.update_one(
@@ -704,12 +707,9 @@ def register(username, password, ip):
         }
     )
 
-    if (
-        recent_attempts >= get_automod_config().get("ACCOUNT_CREATION_THRESHOLD")
-        and get_automod_config().get("ENABLED", True)
-    ):
-        blocked_until = (
-            current_time + get_automod_config().get("ACCOUNT_CREATION_BLOCK_DURATION")
+    if recent_attempts >= get_automod_config().get("ACCOUNT_CREATION_THRESHOLD"):
+        blocked_until = current_time + get_automod_config().get(
+            "ACCOUNT_CREATION_BLOCK_DURATION"
         )
         blocked_ips.update_one(
             {"ip": ip},
@@ -811,10 +811,13 @@ def login(username, password, ip, code=None, token=None):
 
     config = get_automod_config()
     recent_fails = failed_logins.count_documents(
-        {"ip": ip, "timestamp": {"$gt": time.time() - config.get("FAILED_LOGIN_WINDOW")}}
+        {
+            "ip": ip,
+            "timestamp": {"$gt": time.time() - config.get("FAILED_LOGIN_WINDOW")},
+        }
     )
 
-    if recent_fails >= config.get("FAILED_LOGIN_THRESHOLD") and config.get("ENABLED", True):
+    if recent_fails >= config.get("FAILED_LOGIN_THRESHOLD"):
         blocked_until = time.time() + config.get("FAILED_LOGIN_WINDOW")
         blocked_ips.insert_one(
             {
@@ -1046,7 +1049,12 @@ def buy_pet(username):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     if len(user["pets"]) >= 1:
-        return jsonify({"error": "User already has a pet", "code": "user-already-has-pet"}), 400
+        return (
+            jsonify(
+                {"error": "User already has a pet", "code": "user-already-has-pet"}
+            ),
+            400,
+        )
 
     if user["tokens"] < 100:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
@@ -1736,6 +1744,12 @@ def set_banner(banner):
     return jsonify({"success": True})
 
 
+def get_banned():
+    banned_users = users_collection.find({"banned": True}, {"_id": 0})
+    banned_usernames = [user["username"] for user in banned_users]
+    return jsonify({"banned_users": banned_usernames})
+
+
 def parse_command(username, command, room_name):
     user = users_collection.find_one({"username": username})
     user_type = user.get("type")
@@ -1863,7 +1877,8 @@ def send_message(room_name, message_content, username, ip):
         {
             "username": username,
             "timestamp": {
-                "$gt": current_time - get_automod_config().get("MESSAGE_SPAM_TIME_WINDOW")
+                "$gt": current_time
+                - get_automod_config().get("MESSAGE_SPAM_TIME_WINDOW")
             },
         }
     )
@@ -1871,9 +1886,9 @@ def send_message(room_name, message_content, username, ip):
     config = get_automod_config()
 
     # Content checks
-    if check_content_spam(message_content) and config.get("ENABLED", True):
+    if check_content_spam(message_content):
         messages_collection.delete_many(
-            {"username": username, "timestamp": {"$gt": time.time() - 300}}
+            {"username": username, "timestamp": {"$gt": time.time() - 2}}
         )
         mute_duration = config.get("ESCALATING_MUTES")[0]
         user_history.insert_one(
@@ -1886,10 +1901,7 @@ def send_message(room_name, message_content, username, ip):
         )
         return jsonify({"error": "Message blocked", "code": "content-spam"}), 403
 
-    if (
-        user_message_count >= get_automod_config().get("MESSAGE_SPAM_THRESHOLD")
-        and get_automod_config().get("ENABLED", True)
-    ):
+    if user_message_count >= get_automod_config().get("MESSAGE_SPAM_THRESHOLD"):
         user_join_time = user.get("created_at", current_time)
         is_new_user = (current_time - user_join_time) < get_automod_config().get(
             "MIN_ACCOUNT_AGE"
@@ -2054,7 +2066,7 @@ def login_endpoint():
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
-    
+
     ip = request.remote_addr
 
     return login(username, password, ip)
@@ -2391,3 +2403,9 @@ def set_banner_endpoint():
     banner = data.get("banner")
 
     return set_banner(banner)
+
+
+@app.route("/api/get_banned", methods=["GET"])
+@requires_admin
+def get_banned_endpoint():
+    return get_banned()
