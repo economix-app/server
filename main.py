@@ -1664,7 +1664,7 @@ def unban_user(username):
     return jsonify({"success": True})
 
 
-def mute_user(username, length):
+def mute_user(username, length, notify = True):
     user = users_collection.find_one({"username": username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
@@ -1675,11 +1675,12 @@ def mute_user(username, length):
         {"username": username},
         {"$set": {"muted_until": end_time, "muted": True}},
     )
-    send_discord_notification(
-        title="User Muted",
-        description=f"Admin {request.username} muted {username} for {length}",
-        color=0xFFA500,
-    )
+    if notify:
+        send_discord_notification(
+            title="User Muted",
+            description=f"Admin/Mod {request.username} muted {username} for {length}",
+            color=0xFFA500,
+        )
     return jsonify({"success": True})
 
 
@@ -1912,7 +1913,7 @@ def send_message(room_name, message_content, username, ip):
             if is_new_user
             else get_automod_config().get("MESSAGE_SPAM_MUTE_DURATION")
         )
-        mute_user(username, mute_duration)
+        mute_user(username, mute_duration, notify=False)
 
         delete_result = messages_collection.delete_many(
             {
