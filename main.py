@@ -1878,7 +1878,7 @@ def send_message(room_name, message_content, username, ip):
         user_message_count >= get_automod_config().get("MESSAGE_SPAM_THRESHOLD")
         and get_automod_config().get("ENABLED", True)
     ):
-        user_join_time = user.get("join_time", current_time)
+        user_join_time = user.get("created_at", current_time)
         is_new_user = (current_time - user_join_time) < get_automod_config().get(
             "MIN_ACCOUNT_AGE"
         )
@@ -1904,9 +1904,9 @@ def send_message(room_name, message_content, username, ip):
             "room": "global",
             "username": "AutoMod",
             "message": (
-                f"<p>{user_message_count + 1}x Message Spamming</p>"
+                f"<p>{delete_result.deleted_count}x Message Spamming</p>"
                 f"<p>Username: <b>{username}</b></p>"
-                f"<p>Number: <b>{user_message_count + 1}</b></p>"
+                f"<p>Number: <b>{delete_result.deleted_count}</b></p>"
                 f"<p>Status: <b>{delete_result.deleted_count}</b> messages deleted, <b>{username}</b> muted for {'10m' if is_new_user else '5m'}</p>"
             ),
             "timestamp": current_time,
