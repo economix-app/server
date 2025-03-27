@@ -2037,8 +2037,10 @@ def login_endpoint():
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
+    
+    ip = request.remote_addr
 
-    return login(username, password)
+    return login(username, password, ip)
 
 
 @app.route("/api/setup_2fa", methods=["POST"])
