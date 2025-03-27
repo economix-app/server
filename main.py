@@ -5,7 +5,7 @@ import random
 import logging
 from uuid import uuid4
 from logging.handlers import RotatingFileHandler
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, redirect
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from hashlib import sha256
@@ -2020,6 +2020,11 @@ def get_banner():
 ##########################
 #        Routes          #
 ##########################
+
+
+@app.route("/")
+def index():
+    return redirect("https://economix.lol/")
 
 
 @app.route("/api/register", methods=["POST"])
