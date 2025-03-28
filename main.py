@@ -419,7 +419,7 @@ def generate_item(owner: str) -> dict:
     
     meta = Collections['item_meta'].find_one({"id": meta_id})
     if not meta:
-        rarity = round(random.uniform(0.1, 100), 1)
+        rarity = round(random.uniform(0.05, 100), 2)
         meta = {
             "id": meta_id, "adjective": name["adjective"], "material": name["material"],
             "noun": name["noun"], "suffix": name["suffix"], "rarity": rarity,
