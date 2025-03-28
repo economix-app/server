@@ -1217,7 +1217,7 @@ def feed_pet_endpoint():
     Collections["users"].update_one(
         {"username": request.username}, {"$inc": {"tokens": -10}}
     )
-    level_up_pet(pet_id, 10)  # Gain 10 exp per feeding
+    level_up_pet(pet_id, 1)  # Gain 1 exp per feeding
     update_pet(pet_id)  # Refresh status and benefits
     send_discord_notification(
         "Pet Fed", f"User {request.username} fed pet: {pet['name']}"
