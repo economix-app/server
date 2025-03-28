@@ -1147,6 +1147,34 @@ def get_market(username):
     )
     return jsonify(list(items))
 
+def recycle_item(username, item_id):
+    item = items_collection.find_one({"id": item_id})
+    if not item:
+        return jsonify({"error": "Item not Found"}), 404
+
+    item_owner = item["owner"]
+    if item_owner != username:
+        return jsonify({"error": "Unauthorized"})
+
+    user = users_collection.find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not Found"}), 404
+
+    # Give the user 5 tokens
+    edit_tokens(username, user["tokens"] + 5)
+
+    # Remove item from user's inventory
+    users_collection.update_one(
+        {"username": username},
+        {"$pull": {"items": item_id}}
+    )
+
+    # Delete item from items collection
+    items_collection.delete_one({"id": item_id})
+
+    return jsonify({"success": True})
+
+
 
 def sell_item(username, item_id, price):
     try:
@@ -2237,6 +2265,13 @@ def get_banner_endpoint():
 @app.route("/api/stats", methods=["GET"])
 def stats_endpoint():
     return get_stats()
+
+@app.route("/api/recycle_item", methods=["POST"])
+@requires_unbanned
+def recycle_endpoint():
+    data = request.get_json()
+    item_id = data["item_id"]
+    recycle_item(request.username, item_id)
 
 
 # Admin routes
