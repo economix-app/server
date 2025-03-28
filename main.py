@@ -310,29 +310,20 @@ def update_pet(pet_id: str):
     if not pet:
         return
       
-    if "history" not in pet:
-        pet["history"] = []
-    
-    if "last_fed" not in pet:
-        pet["last_fed"] = int(time.time())
-        
-    if "health" not in pet:
-        pet["health"] = "healthy"
-        
-    if "alive" not in pet:
-        pet["alive"] = True
-        
-    if "level" not in pet:
-        pet["level"] = 1
-        
-    if "exp" not in pet:
-        pet["exp"] = 0
-        
-    if "benefits" not in pet:
-        pet["benefits"] = {"token_bonus": 1}
-        
-    if "base_price" not in pet:
-        pet["base_price"] = 100
+    Collections['pets'].update_one(
+        {"id": pet_id},
+        {"$setOnInsert": {
+            "history": [],
+            "last_fed": int(time.time()),
+            "health": "healthy",
+            "alive": True,
+            "level": 1,
+            "exp": 0,
+            "benefits": {"token_bonus": 1},
+            "base_price": 100
+        }},
+        upsert=True
+    )
 
     last_fed = pet["last_fed"]
     now = int(time.time())
