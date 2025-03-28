@@ -1042,7 +1042,6 @@ def disable_2fa_endpoint():
     return jsonify({"success": True})
 
 @app.route("/api/account", methods=["GET"])
-@requires_unbanned
 def account_endpoint():
     update_account(request.username)
     user = Collections['users'].find_one({"username": request.username})
