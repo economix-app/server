@@ -1573,3 +1573,16 @@ def set_banner_endpoint():
 def get_banned_endpoint():
     banned = Collections['users'].find({"banned": True}, {"_id": 0})
     return jsonify({"banned_users": [user["username"] for user in banned]})
+
+@app.route("/api/delete_user", methods=["POST"])
+@requires_admin
+def delete_user_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    user = Collections['users'].find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+    Collections['items'].delete_many({"owner": username})
+    Collections['users'].delete_one({"username": username})
+    send_discord_notification("User deleted", f"Admin {request.username} deleted user {username}", 0xFF0000)
+    return jsonify({"success": True})
