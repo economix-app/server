@@ -546,7 +546,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
         }
         Collections['users'].insert_one(user_data)
         Collections['account_creation_attempts'].insert_one({"ip": ip, "timestamp": current_time})
-        send_discord_notification("New user registered", f"Username: {username}")
+        send_discord_notification("New user registered", f"Username: {username}\nIP: {ip}")
         return jsonify({"success": True}), 201
     except DuplicateKeyError:
         return jsonify({"error": "Username exists", "code": "username-exists"}), 400
