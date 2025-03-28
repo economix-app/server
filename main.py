@@ -1423,14 +1423,14 @@ def stats_endpoint():
     total_tokens = sum(user["tokens"] for user in accounts)
     
     return jsonify({
-        "stats": [
-            {"name": "Total Accounts", "value": len(accounts)},
-            {"name": "Total Admins", "value": len(admins)},
-            {"name": "Total Mods", "value": len(mods)},
-            {"name": "Total Users", "value": len(users)},
-            {"name": "Total Tokens", "value": total_tokens},
-            {"name": "Total Items", "value": len(items)}
-        ]
+        "stats": {
+            "total_tokens": total_tokens,
+            "total_accounts": len(accounts),
+            "total_items": len(items),
+            "total_mods": len(mods),
+            "total_admins": len(admins),
+            "total_users": len(users)
+        }
     })
 
 @app.route("/api/recycle_item", methods=["POST"])
