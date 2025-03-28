@@ -314,7 +314,7 @@ def update_pet(pet_id: str):
         "alive": True,
         "last_fed": int(time.time()),
         "level": 1,
-        "xp": 0,
+        "exp": 0,
         "benefits": {"token_bonus": 1},
         "health": "healthy",
         "base_price": 100
