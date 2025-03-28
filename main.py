@@ -307,25 +307,55 @@ def update_item(item_id: str):
 
 def update_pet(pet_id: str):
     pet = Collections['pets'].find_one({"id": pet_id})
-    if not pet:
+    if not pet or not pet["alive"]:
         return
-    
+
     last_fed = pet["last_fed"]
-    if isinstance(last_fed, (int, float)):
-        last_fed = datetime.fromtimestamp(last_fed)
-    
-    today = datetime.now()
-    days_ago = [(today - timedelta(days=i)).date() for i in range(4)]
-    health_status = {
-        days_ago[0]: "healthy",
-        days_ago[1]: "healthy",
-        days_ago[3]: "hungry",
-        days_ago[2]: "starving"
-    }
-    Collections['pets'].update_one(
-        {"id": pet_id},
-        {"$set": {"health": health_status.get(last_fed.date(), "starving")}}
-    )
+    now = int(time.time())
+    days_unfed = (now - last_fed) // (24 * 3600)  # Convert seconds to days
+
+    # Health status and death check
+    if days_unfed >= 3:
+        Collections['pets'].update_one(
+            {"id": pet_id},
+            {"$set": {"health": "dead", "alive": False}}
+        )
+        send_discord_notification(
+            "Pet Died",
+            f"User {pet['owner']}'s pet {pet['name']} died due to neglect.",
+            0xFF0000
+        )
+    elif days_unfed == 2:
+        Collections['pets'].update_one({"id": pet_id}, {"$set": {"health": "starving"}})
+    elif days_unfed == 1:
+        Collections['pets'].update_one({"id": pet_id}, {"$set": {"health": "hungry"}})
+    else:
+        Collections['pets'].update_one({"id": pet_id}, {"$set": {"health": "healthy"}})
+
+    # Update benefits based on level (only if alive)
+    if pet["alive"]:
+        pet["benefits"]["token_bonus"] = pet["level"]  # +1 token per level
+        Collections['pets'].update_one({"id": pet_id}, {"$set": {"benefits": pet["benefits"]}})
+
+def level_up_pet(pet_id: str, exp_gain: int):
+    pet = Collections['pets'].find_one({"id": pet_id})
+    if not pet or not pet["alive"]:
+        return
+
+    new_exp = pet["exp"] + exp_gain
+    next_level_exp = exp_for_level(pet["level"] + 1)
+    if new_exp >= next_level_exp:
+        Collections['pets'].update_one(
+            {"id": pet_id},
+            {"$set": {"level": pet["level"] + 1, "exp": new_exp - next_level_exp}}
+        )
+        send_discord_notification(
+            "Pet Leveled Up",
+            f"User {pet['owner']}'s pet {pet['name']} reached level {pet['level'] + 1}!",
+            0x00FF00
+        )
+    else:
+        Collections['pets'].update_one({"id": pet_id}, {"$set": {"exp": new_exp}})
 
 def update_account(username: str) -> Optional[Tuple[dict, int]]:
     user = Collections['users'].find_one({"username": username})
@@ -404,15 +434,19 @@ def generate_item(owner: str) -> dict:
         "created_at": int(time.time())
     }
 
-def generate_pet(owner: str) -> dict:
+def generate_pet(owner: str, base_price: int = 100) -> dict:
     return {
         "id": str(uuid4()),
         "name": random.choice(PET_NAMES),
         "level": 1,
+        "exp": 0,
         "owner": owner,
         "created_at": int(time.time()),
-        "last_fed": (datetime.now() - timedelta(days=1)).timestamp(),
-        "status": "healthy"
+        "last_fed": int(time.time()),
+        "health": "healthy",
+        "benefits": {"token_bonus": 1},
+        "alive": True,
+        "base_price": base_price,
     }
 
 # Experience System
@@ -1110,23 +1144,38 @@ def create_item_endpoint():
 @app.route("/api/buy_pet", methods=["POST"])
 @requires_unbanned
 def buy_pet_endpoint():
-    user = Collections['users'].find_one({"username": request.username}, {"_id": 0})
+    user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-    if len(user["pets"]) >= 1:
-        return jsonify({"error": "Already has pet", "code": "user-already-has-pet"}), 400
-    if user["tokens"] < 100:
+    if len(user.get("pets", [])) >= 1:
+        current_pet = Collections["pets"].find_one({"id": user["pets"][0]})
+        if current_pet["alive"]:
+            return (
+                jsonify(
+                    {"error": "Already has a live pet", "code": "user-already-has-pet"}
+                ),
+                400,
+            )
+        # Remove dead pet
+        Collections["users"].update_one(
+            {"username": request.username}, {"$pull": {"pets": current_pet["id"]}}
+        )
+        price = current_pet["base_price"] * 2  # Double price for repurchase
+    else:
+        price = 100  # Initial price
+
+    if user["tokens"] < price:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
-    
-    pet = generate_pet(request.username)
-    Collections['pets'].insert_one(pet)
-    Collections['users'].update_one(
+
+    pet = generate_pet(request.username, price)
+    Collections["pets"].insert_one(pet)
+    Collections["users"].update_one(
         {"username": request.username},
-        {"$inc": {"tokens": -100}, "$push": {"pets": pet["id"]}}
+        {"$inc": {"tokens": -price}, "$push": {"pets": pet["id"]}},
     )
     send_discord_notification(
         "New Pet Bought",
-        f"User {request.username} bought pet: {pet['name']}"
+        f"User {request.username} bought pet: {pet['name']} for {price} tokens",
     )
     return jsonify(pet)
 
@@ -1135,20 +1184,25 @@ def buy_pet_endpoint():
 def feed_pet_endpoint():
     data = request.get_json()
     pet_id = data.get("pet_id")
-    user = Collections['users'].find_one({"username": request.username}, {"_id": 0})
+    user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-    pet = Collections['pets'].find_one({"id": pet_id})
-    if not pet:
-        return jsonify({"error": "Pet not found", "code": "pet-not-found"}), 404
+    pet = Collections["pets"].find_one({"id": pet_id})
+    if not pet or not pet["alive"]:
+        return jsonify({"error": "Pet not found or dead", "code": "pet-not-found"}), 404
     if user["tokens"] < 10:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
-    
-    Collections['pets'].update_one({"id": pet_id}, {"$set": {"last_fed": time.time()}})
-    Collections['users'].update_one({"username": request.username}, {"$inc": {"tokens": -10}})
+
+    Collections["pets"].update_one(
+        {"id": pet_id}, {"$set": {"last_fed": int(time.time())}}
+    )
+    Collections["users"].update_one(
+        {"username": request.username}, {"$inc": {"tokens": -10}}
+    )
+    level_up_pet(pet_id, 10)  # Gain 10 exp per feeding
+    update_pet(pet_id)  # Refresh status and benefits
     send_discord_notification(
-        "Pet Fed",
-        f"User {request.username} fed pet: {pet['name']}"
+        "Pet Fed", f"User {request.username} fed pet: {pet['name']}"
     )
     return jsonify({"success": True})
 
