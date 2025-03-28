@@ -924,18 +924,19 @@ def mute_user(username: str, length: str, notify: bool = True) -> Tuple[dict, in
         )
     return jsonify({"success": True})
 
-def unmute_user(username: str) -> Tuple[dict, int]:
+def unmute_user(username: str, notify: bool = True) -> Tuple[dict, int]:
     if not Collections['users'].find_one({"username": username}):
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
     
     Collections['users'].update_one(
         {"username": username}, {"$set": {"muted": False, "muted_until": None}}
     )
-    send_discord_notification(
-        "User Unmuted",
-        f"Admin {request.username} unmuted {username}",
-        0xFFA500
-    )
+    if notify:
+        send_discord_notification(
+            "User Unmuted",
+            f"Admin/Mod {request.username} unmuted {username}",
+            0xFFA500
+        )
     return jsonify({"success": True})
 
 def fine_user(username: str, amount: int) -> Tuple[dict, int]:
