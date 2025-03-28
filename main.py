@@ -5,9 +5,7 @@ import random
 import logging
 from uuid import uuid4
 from threading import Thread
-import schedule
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from flask import Flask, request, jsonify, send_file, redirect
 from flask_cors import CORS
@@ -209,21 +207,6 @@ def send_discord_notification(title: str, description: str, color: int = 0x00FF0
             app.logger.error(f"Discord notification failed: {response.status_code}")
     
     Thread(target=_send).start()
-
-def send_system_message():
-    Collections['messages'].insert_one({
-        "id": str(uuid4()),
-        "room": "global",
-        "username": "Announcement",
-        "message": """
-        <p>Everyone, remember to follow the rules to enjoy a safe and enjoyable experience!</p>
-        <p><b> - proplayer919 & the Economix team</b></p>
-        """,
-        "timestamp": time.time(),
-        "type": "system"
-    })
-
-schedule.every(5).minutes.do(send_system_message)
 
 # Authentication Decorators
 def requires_admin(f):
