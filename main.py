@@ -306,24 +306,26 @@ def update_item(item_id: str):
     Collections['items'].update_one({"id": item_id}, {"$set": updates})
 
 def update_pet(pet_id: str):
+    Collections["pets"].update_one(
+        {"id": pet_id},
+        {
+            "$setOnInsert": {
+                "history": [],
+                "last_fed": int(time.time()),
+                "health": "healthy",
+                "alive": True,
+                "level": 1,
+                "exp": 0,
+                "benefits": {"token_bonus": 1},
+                "base_price": 100,
+            }
+        },
+        upsert=True,
+    )
+
     pet = Collections['pets'].find_one({"id": pet_id})
     if not pet:
         return
-      
-    Collections['pets'].update_one(
-        {"id": pet_id},
-        {"$setOnInsert": {
-            "history": [],
-            "last_fed": int(time.time()),
-            "health": "healthy",
-            "alive": True,
-            "level": 1,
-            "exp": 0,
-            "benefits": {"token_bonus": 1},
-            "base_price": 100
-        }},
-        upsert=True
-    )
 
     last_fed = pet["last_fed"]
     now = int(time.time())
