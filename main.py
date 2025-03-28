@@ -25,7 +25,7 @@ from logging.handlers import RotatingFileHandler
 
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
-TOKEN_MINE_COOLDOWN = 300  # 5 minutes
+TOKEN_MINE_COOLDOWN = 180  # 3 minutes
 MAX_ITEM_PRICE = 1000000000000
 MIN_ITEM_PRICE = 1
 
