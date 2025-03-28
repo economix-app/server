@@ -1498,6 +1498,3 @@ def set_banner_endpoint():
 def get_banned_endpoint():
     banned = Collections['users'].find({"banned": True}, {"_id": 0})
     return jsonify({"banned_users": [user["username"] for user in banned]})
-
-if __name__ == "__main__":
-    app.run(debug=True)
