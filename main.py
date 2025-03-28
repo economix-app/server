@@ -1201,7 +1201,7 @@ def feed_pet_endpoint():
         {"username": request.username}, {"$inc": {"tokens": -10}}
     )
     level_up_pet(pet_id, 3)  # Gain 3 exp per feeding
-    update_pet(pet_id)  # Refresh status and benefits
+    update_pet(pet_id)
     send_discord_notification(
         "Pet Fed", f"User {request.username} fed pet: {pet['name']}"
     )
@@ -1222,6 +1222,15 @@ def mine_tokens_endpoint():
         }), 429
     
     tokens = random.randint(5, 10)
+    
+    extra_tokens = 0
+    for pet_id in user.get("pets", []):
+        pet = Collections["pets"].find_one({"id": pet_id})
+        if pet and pet["alive"]:
+            extra_tokens += pet["benefits"].get("token_bonus", 0)
+    tokens += extra_tokens
+    
+    
     Collections['users'].update_one(
         {"username": request.username},
         {"$inc": {"tokens": tokens}, "$set": {"last_mine_time": now}}
