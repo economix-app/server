@@ -216,8 +216,8 @@ def send_system_message():
         "room": "global",
         "username": "Announcement",
         "message": """
-        Everyone, remember to follow the rules to enjoy a safe and enjoyable experience!
-        <b> - proplayer919 & the Economix team</b>
+        <p>Everyone, remember to follow the rules to enjoy a safe and enjoyable experience!</p>
+        <p><b> - proplayer919 & the Economix team</b></p>
         """,
         "timestamp": time.time(),
         "type": "system"
@@ -319,8 +319,8 @@ def update_pet(pet_id: str):
     health_status = {
         days_ago[0]: "healthy",
         days_ago[1]: "healthy",
-        days_ago[2]: "hungry",
-        days_ago[3]: "starving"
+        days_ago[3]: "hungry",
+        days_ago[2]: "starving"
     }
     Collections['pets'].update_one(
         {"id": pet_id},
@@ -478,9 +478,15 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
             {"$set": {"banned": True, "banned_until": blocked_until, "banned_reason": "Account spam"}}
         )
         Collections['messages'].insert_one({
-            "id": str(uuid4()), "room": "global", "username": "AutoMod",
-            "message": f"{recent_attempts + 1}x Account Creation Spamming\nIP: {ip}",
-            "timestamp": current_time, "type": "system"
+            "id": str(uuid4()), 
+            "room": "global", 
+            "username": "AutoMod",
+            "message": f"""
+            <p><span style="color: #FF5555">[WARNING]</span> Detected <b>{recent_attempts + 1}x</b> Account Creation Spam</p>
+            <p>IP: <b>{ip}</b> has been blocked for <b>{AUTOMOD_CONFIG['ACCOUNT_CREATION_BLOCK_DURATION']} seconds</b></p>
+            """,
+            "timestamp": current_time, 
+            "type": "system"
         })
         send_discord_notification(
             "AutoMod Action",
@@ -654,9 +660,15 @@ def send_message(room_name: str, message_content: str, username: str, ip: str) -
             "timestamp": {"$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]}
         }).deleted_count
         Collections['messages'].insert_one({
-            "id": str(uuid4()), "room": "global", "username": "AutoMod",
-            "message": f"{deleted}x Message Spamming\nUsername: <b>{username}</b>",
-            "timestamp": current_time, "type": "system"
+            "id": str(uuid4()), 
+            "room": "global", 
+            "username": "AutoMod",
+            "message": f"""
+            <p><span style="color: #FF5555">[WARNING]</span> Detected <b>{deleted}x</b> Message Spam</p>
+            <p>User: <b>{username}</b> has been muted for <b>{mute_duration}</b></p>
+            """,
+            "timestamp": current_time, 
+            "type": "system"
         })
         send_discord_notification(
             "AutoMod Action",
@@ -676,13 +688,21 @@ def send_message(room_name: str, message_content: str, username: str, ip: str) -
         system_message = parse_command(username, sanitized_message, room_name)
         if system_message:
             Collections['messages'].insert_one({
-                "id": str(uuid4()), "room": room_name, "username": "Command Handler",
-                "message": system_message, "timestamp": time.time(), "type": "system"
+                "id": str(uuid4()), 
+                "room": room_name, 
+                "username": "Command Handler",
+                "message": system_message, 
+                "timestamp": time.time(), 
+                "type": "system"
             })
     else:
         Collections['messages'].insert_one({
-            "id": str(uuid4()), "room": room_name, "username": username,
-            "message": sanitized_message, "timestamp": time.time(), "type": user["type"]
+            "id": str(uuid4()), 
+            "room": room_name, 
+            "username": username,
+            "message": sanitized_message, 
+            "timestamp": time.time(), 
+            "type": user["type"]
         })
     return jsonify({"success": True})
 
