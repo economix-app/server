@@ -2384,4 +2384,4 @@ def delete_creator_code_endpoint():
 @requires_admin
 def get_creator_codes_endpoint():
     codes = Collections["creator_codes"].find({}, {"_id": 0})
-    return jsonify({"creator_codes": codes})
+    return jsonify({"creator_codes": [code for code in codes]})
