@@ -251,6 +251,16 @@ def send_discord_notification(title: str, description: str, color: int = 0x00FF0
         if response.status_code != 204:
             app.logger.error(f"Discord notification failed: {response.status_code}")
 
+        Collections["messages"].insert_one(
+            {
+                "room": "logs",
+                "username": "AutoMod",
+                "message": description,
+                "timestamp": int(time.time()),
+                "type": "system",
+            }
+        )
+
     Thread(target=_send).start()
 
 
@@ -849,6 +859,10 @@ def login(
 def get_users() -> Tuple[dict, int]:
     users = Collections["users"].find({}, {"_id": 0, "username": 1})
     return jsonify({"usernames": [user["username"] for user in users]})
+  
+def get_user(username: str) -> Tuple[dict, int]:
+    user = Collections["users"].find_one({"username": username}, {"_id": 0})
+    return jsonify(user)
 
 
 def parse_command(username: str, command: str, room_name: str) -> str:
@@ -1937,6 +1951,11 @@ def get_messages_endpoint():
             jsonify({"error": "Missing room parameter", "code": "missing-parameters"}),
             400,
         )
+
+    user = Collections["users"].find_one({"username": request.username})
+    if room == "logs" and not user["type"] == "admin":
+        return jsonify({"error": "You are not an admin", "code": "not-admin"}), 403
+
     messages = (
         Collections["messages"]
         .find({"room": room}, {"_id": 0})
@@ -2163,7 +2182,8 @@ def redeem_creator_code_endpoint():
         )
 
     Collections["users"].update_one(
-        {"username": user["username"]}, {"$set": {"redeemed_creator_code": True, "creator_code": code}}
+        {"username": user["username"]},
+        {"$set": {"redeemed_creator_code": True, "creator_code": code}},
     )
 
     return jsonify({"success": True})
@@ -2282,6 +2302,11 @@ def unmute_user_endpoint():
 @requires_mod
 def users_endpoint():
     return get_users()
+  
+@app.route("/api/user/<username>", methods=["GET"])
+@requires_admin
+def user_endpoint(username):
+    return get_user(username)
 
 
 @app.route("/api/delete_message", methods=["POST"])
@@ -2379,6 +2404,7 @@ def delete_creator_code_endpoint():
 
     Collections["creator_codes"].delete_one({"code": code.lower()})
     return jsonify({"success": True})
+
 
 @app.route("/api/get_creator_codes", methods=["GET"])
 @requires_admin
