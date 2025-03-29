@@ -2128,6 +2128,7 @@ def recycle_endpoint():
 def redeem_creator_code_endpoint():
     data = request.get_json()
     code = data["code"]
+    code = code.lower()
 
     user = Collections["users"].find_one({"username": request.username})
     if not user:
