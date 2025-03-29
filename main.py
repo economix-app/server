@@ -1473,6 +1473,10 @@ def account_endpoint():
             "history": user.get("history"),
             "2fa_enabled": user.get("2fa_enabled"),
             "pets": pets,
+            "override_plan": user.get("override_plan"),
+            "override_plan_expires": user.get("override_plan_expires"),
+            "redeemed_creator_code": user.get("redeemed_creator_code"),
+            "creator_code": user.get("creator_code"),
         }
     )
 
