@@ -2186,7 +2186,7 @@ def redeem_creator_code_endpoint():
         {"$set": {"redeemed_creator_code": True, "creator_code": code}},
     )
 
-    return jsonify({"success": True})
+    return jsonify({"success": True, "tokens": extra_tokens, "pets": extra_pets})
 
 
 @app.route("/api/reset_cooldowns", methods=["POST"])
