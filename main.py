@@ -530,6 +530,7 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         "override_plan": None,
         "override_plan_expires": None,
         "redeemed_creator_code": False,
+        "creator_code": None,
     }
     updates = {k: v for k, v in defaults.items() if k not in user}
     if updates:
@@ -770,6 +771,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
             "override_plan": None,
             "override_plan_expires": None,
             "redeemed_creator_code": False,
+            "creator_code": None,
         }
         Collections["users"].insert_one(user_data)
         Collections["account_creation_attempts"].insert_one(
@@ -2128,7 +2130,6 @@ def recycle_endpoint():
 def redeem_creator_code_endpoint():
     data = request.get_json()
     code = data["code"]
-    code = code.lower()
 
     user = Collections["users"].find_one({"username": request.username})
     if not user:
@@ -2137,7 +2138,7 @@ def redeem_creator_code_endpoint():
     if user.get("redeemed_creator_code"):
         return jsonify({"error": "Creator code already redeemed"}), 400
 
-    creator_code = Collections["creator_codes"].find_one({"code": code})
+    creator_code = Collections["creator_codes"].find_one({"code": code.lower()})
     if not creator_code:
         return jsonify({"error": "Invalid creator code"}), 400
 
@@ -2158,7 +2159,7 @@ def redeem_creator_code_endpoint():
         )
 
     Collections["users"].update_one(
-        {"username": user["username"]}, {"$set": {"redeemed_creator_code": True}}
+        {"username": user["username"]}, {"$set": {"redeemed_creator_code": True, "creator_code": code}}
     )
 
     return jsonify({"success": True})
