@@ -62,6 +62,7 @@ Collections = {
     "blocked_ips": db.blocked_ips,
     "failed_logins": db.failed_logins,
     "user_history": db.user_history,
+    "creator_codes": db.creator_codes,
 }
 
 # AutoMod Configuration
@@ -165,6 +166,7 @@ def create_indexes():
         [("ip", ASCENDING), ("timestamp", ASCENDING)]
     )
     Collections["user_history"].create_index([("username", ASCENDING)])
+    Collections["user_history"].create_index([("code", ASCENDING)])
 
 
 create_indexes()
@@ -295,41 +297,74 @@ def requires_unbanned(f):
 
     return decorated
 
+
 def requires_pro(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = Collections["users"].find_one({"username": request.username})
         if user.get("override_plan", "free") not in ["pro", "proplus"]:
-            if user.get("override_plan_expiration") and user["override_plan_expiration"] < time.time():
-                return jsonify({"error": "Subscription required", "code": "subscription-required"}), 403
+            if (
+                user.get("override_plan_expiration")
+                and user["override_plan_expiration"] < time.time()
+            ):
+                return (
+                    jsonify(
+                        {
+                            "error": "Subscription required",
+                            "code": "subscription-required",
+                        }
+                    ),
+                    403,
+                )
         return f(*args, **kwargs)
 
     return decorated
+
 
 def requires_proplus(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = Collections["users"].find_one({"username": request.username})
         if user.get("override_plan", "free") not in ["proplus"]:
-            if user.get("override_plan_expiration") and user["override_plan_expiration"] < time.time():
-                return jsonify({"error": "Subscription required", "code": "subscription-required"}), 403
+            if (
+                user.get("override_plan_expiration")
+                and user["override_plan_expiration"] < time.time()
+            ):
+                return (
+                    jsonify(
+                        {
+                            "error": "Subscription required",
+                            "code": "subscription-required",
+                        }
+                    ),
+                    403,
+                )
         return f(*args, **kwargs)
 
     return decorated
 
+
 def has_pro(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["pro", "proplus"]:
-        if user.get("override_plan_expiration") and user["override_plan_expiration"] > time.time():
+        if (
+            user.get("override_plan_expiration")
+            and user["override_plan_expiration"] > time.time()
+        ):
             return True
     return False
+
 
 def has_proplus(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["proplus"]:
-        if user.get("override_plan_expiration") and user["override_plan_expiration"] > time.time():
+        if (
+            user.get("override_plan_expiration")
+            and user["override_plan_expiration"] > time.time()
+        ):
             return True
     return False
+
 
 # Middleware
 @app.before_request
@@ -494,6 +529,7 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         "pets": [],
         "override_plan": None,
         "override_plan_expires": None,
+        "redeemed_creator_code": False,
     }
     updates = {k: v for k, v in defaults.items() if k not in user}
     if updates:
@@ -520,13 +556,13 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
 
     for item_id in user["items"]:
         update_item(item_id)
-        
+
     pet_limit = 1
     if has_pro(username):
         pet_limit = 3
     if has_proplus(username):
         pet_limit = 5
-        
+
     if len(user["pets"]) > pet_limit:
         refund = (len(user["pets"]) - 1) * 100
         Collections["users"].update_one(
@@ -733,6 +769,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
             "creation_ip": ip,
             "override_plan": None,
             "override_plan_expires": None,
+            "redeemed_creator_code": False,
         }
         Collections["users"].insert_one(user_data)
         Collections["account_creation_attempts"].insert_one(
@@ -1519,20 +1556,23 @@ def buy_pet_endpoint():
     user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-      
+
     pet_limit = 1
     if has_pro(request.username):
         pet_limit = 3
     if has_proplus(request.username):
         pet_limit = 5
-        
+
     if len(user.get("pets", [])) >= pet_limit:
         for pet_id in user["pets"]:
             current_pet = Collections["pets"].find_one({"id": pet_id})
             if current_pet["alive"]:
                 return (
                     jsonify(
-                        {"error": "Already have maximum pets", "code": "user-already-has-pet"}
+                        {
+                            "error": "Already have maximum pets",
+                            "code": "user-already-has-pet",
+                        }
                     ),
                     400,
                 )
@@ -2083,6 +2123,46 @@ def recycle_endpoint():
     return jsonify({"success": True})
 
 
+@app.route("/api/redeem_creator_code", methods=["POST"])
+@requires_unbanned
+def redeem_creator_code_endpoint():
+    data = request.get_json()
+    code = data["code"]
+
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    if user.get("redeemed_creator_code"):
+        return jsonify({"error": "Creator code already redeemed"}), 400
+
+    creator_code = Collections["creator_codes"].find_one({"code": code})
+    if not creator_code:
+        return jsonify({"error": "Invalid creator code"}), 400
+
+    extra_tokens = creator_code["tokens"]
+    extra_pets = creator_code["pets"]
+
+    if extra_pets > 0:
+        for _ in range(extra_pets):
+            pet = generate_pet(user["username"])
+            Collections["pets"].insert_one(pet)
+            Collections["users"].update_one(
+                {"username": user["username"]}, {"$push": {"pets": pet["id"]}}
+            )
+
+    if extra_tokens > 0:
+        Collections["users"].update_one(
+            {"username": user["username"]}, {"$inc": {"tokens": extra_tokens}}
+        )
+
+    Collections["users"].update_one(
+        {"username": user["username"]}, {"$set": {"redeemed_creator_code": True}}
+    )
+
+    return jsonify({"success": True})
+
+
 @app.route("/api/reset_cooldowns", methods=["POST"])
 @requires_admin
 def reset_cooldowns_endpoint():
@@ -2241,6 +2321,7 @@ def delete_user_endpoint():
     )
     return jsonify({"success": True})
 
+
 @app.route("/api/give_plan", methods=["POST"])
 @requires_admin
 def give_plan_endpoint():
@@ -2248,14 +2329,15 @@ def give_plan_endpoint():
     plan = data.get("plan")
     username = data.get("username")
     length = data.get("length")
-    
+
     expires = parse_time(length)
-    
+
     Collections["users"].update_one(
         {"username": username},
         {"$set": {"override_plan": plan, "override_plan_expires": expires}},
     )
     return jsonify({"success": True})
+
 
 @app.route("/api/remove_plan", methods=["POST"])
 @requires_admin
@@ -2266,4 +2348,28 @@ def remove_plan_endpoint():
         {"username": username},
         {"$unset": {"override_plan": None, "override_plan_expires": None}},
     )
+    return jsonify({"success": True})
+
+
+@app.route("/api/create_creator_code", methods=["POST"])
+@requires_admin
+def create_creator_code_endpoint():
+    data = request.get_json()
+    code = data.get("code")
+    tokens = data.get("tokens")
+    pets = data.get("pets")
+
+    Collections["creator_codes"].insert_one(
+        {"code": code.lower(), "tokens": tokens, "pets": pets}
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/delete_creator_code", methods=["POST"])
+@requires_admin
+def delete_creator_code_endpoint():
+    data = request.get_json()
+    code = data.get("code")
+
+    Collections["creator_codes"].delete_one({"code": code.lower()})
     return jsonify({"success": True})
