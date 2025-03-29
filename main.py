@@ -53,6 +53,7 @@ Collections = {
     "users": db.users,
     "items": db.items,
     "messages": db.messages,
+    "dms": db.dms,
     "item_meta": db.item_meta,
     "misc": db.misc,
     "pets": db.pets,
@@ -137,6 +138,9 @@ def create_indexes():
     Collections["items"].create_index([("id", ASCENDING), ("owner", ASCENDING)])
     Collections["messages"].create_index(
         [("room", ASCENDING), ("timestamp", ASCENDING)]
+    )
+    Collections["dms"].create_index(
+        [("conversation_id", ASCENDING), ("timestamp", ASCENDING)]
     )
     Collections["item_meta"].create_index([("id", ASCENDING)])
     Collections["misc"].create_index([("type", ASCENDING)])
@@ -227,6 +231,10 @@ def check_content_spam(message: str) -> bool:
     return False
 
 
+def get_conversation_id(user1: str, user2: str) -> str:
+    return ":".join(sorted([user1, user2]))
+
+
 def send_discord_notification(title: str, description: str, color: int = 0x00FF00):
     webhook_url = os.environ.get("DISCORD_WEBHOOK")
     if not webhook_url:
@@ -286,7 +294,7 @@ def requires_unbanned(f):
         return f(*args, **kwargs)
 
     return decorated
-  
+
 def requires_pro(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -297,7 +305,7 @@ def requires_pro(f):
         return f(*args, **kwargs)
 
     return decorated
-  
+
 def requires_proplus(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -308,14 +316,14 @@ def requires_proplus(f):
         return f(*args, **kwargs)
 
     return decorated
-  
+
 def has_pro(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["pro", "proplus"]:
         if user.get("override_plan_expiration") and user["override_plan_expiration"] > time.time():
             return True
     return False
-  
+
 def has_proplus(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["proplus"]:
@@ -1891,6 +1899,137 @@ def get_messages_endpoint():
     return jsonify({"messages": list(messages)})
 
 
+@app.route("/api/send_dm", methods=["POST"])
+@requires_unbanned
+def send_dm_endpoint():
+    data = request.get_json()
+    recipient = data.get("recipient")
+    message_content = data.get("message")
+    sender = request.username
+    ip = request.remote_addr
+
+    if not recipient or not message_content:
+        return (
+            jsonify(
+                {"error": "Missing recipient or message", "code": "missing-parameters"}
+            ),
+            400,
+        )
+
+    if not Collections["users"].find_one({"username": recipient}):
+        return jsonify({"error": "Recipient not found", "code": "user-not-found"}), 404
+
+    if sender == recipient:
+        return jsonify({"error": "Cannot send DM to yourself", "code": "self-dm"}), 400
+
+    # Apply same spam checks as global messages
+    current_time = time.time()
+    message_count = Collections["message_attempts"].count_documents(
+        {
+            "username": sender,
+            "timestamp": {
+                "$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]
+            },
+        }
+    )
+
+    if message_count >= AUTOMOD_CONFIG["MESSAGE_SPAM_THRESHOLD"]:
+        mute_duration = AUTOMOD_CONFIG["MESSAGE_SPAM_MUTE_DURATION"]
+        mute_user(sender, mute_duration, notify=False)
+        return jsonify({"error": "Message spam detected", "code": "message-spam"}), 429
+
+    if check_content_spam(message_content):
+        mute_user(sender, AUTOMOD_CONFIG["MESSAGE_SPAM_MUTE_DURATION"], notify=False)
+        return jsonify({"error": "Message blocked", "code": "content-spam"}), 403
+
+    sanitized_message = profanity.censor(html.escape(message_content.strip()))
+    if not sanitized_message:
+        return jsonify({"error": "Message empty", "code": "empty-message"}), 400
+    if len(sanitized_message) > 100:
+        return jsonify({"error": "Message too long", "code": "message-too-long"}), 400
+
+    conversation_id = get_conversation_id(sender, recipient)
+    Collections["dms"].insert_one(
+        {
+            "id": str(uuid4()),
+            "conversation_id": conversation_id,
+            "sender": sender,
+            "message": sanitized_message,
+            "timestamp": current_time,
+            "read": False,
+        }
+    )
+    Collections["message_attempts"].insert_one(
+        {"username": sender, "ip": ip, "timestamp": current_time}
+    )
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/get_dms", methods=["GET"])
+@requires_unbanned
+def get_dms_endpoint():
+    recipient = request.args.get("recipient")
+    sender = request.username
+
+    if not recipient:
+        return (
+            jsonify({"error": "Missing recipient", "code": "missing-parameters"}),
+            400,
+        )
+
+    if not Collections["users"].find_one({"username": recipient}):
+        return jsonify({"error": "Recipient not found", "code": "user-not-found"}), 404
+
+    conversation_id = get_conversation_id(sender, recipient)
+    dms = list(
+        Collections["dms"]
+        .find({"conversation_id": conversation_id})
+        .sort("timestamp", ASCENDING)
+    )
+    for dm in dms:
+        dm["_id"] = str(dm["_id"])  # Convert ObjectId to string
+        if dm["sender"] != sender and not dm["read"]:
+            Collections["dms"].update_one({"id": dm["id"]}, {"$set": {"read": True}})
+
+    return jsonify({"messages": dms})
+
+
+@app.route("/api/get_conversations", methods=["GET"])
+@requires_unbanned
+def get_conversations_endpoint():
+    username = request.username
+    conversations = Collections["dms"].aggregate(
+        [
+            {
+                "$match": {
+                    "$or": [
+                        {"sender": username},
+                        {"conversation_id": {"$regex": f":{username}$"}},
+                    ]
+                }
+            },
+            {"$group": {"_id": "$conversation_id"}},
+        ]
+    )
+    conversation_ids = [conv["_id"] for conv in conversations]
+    recipients = set()
+    for conv_id in conversation_ids:
+        user1, user2 = conv_id.split(":")
+        recipients.add(user1 if user2 == username else user2)
+
+    # Get unread message counts
+    unread_counts = {}
+    for recipient in recipients:
+        conv_id = get_conversation_id(username, recipient)
+        unread = Collections["dms"].count_documents(
+            {"conversation_id": conv_id, "sender": recipient, "read": False}
+        )
+        unread_counts[recipient] = unread
+
+    return jsonify({"conversations": list(recipients), "unread_counts": unread_counts})
+
+
 @app.route("/api/get_banner", methods=["GET"])
 @requires_unbanned
 def get_banner_endpoint():
@@ -2117,7 +2256,7 @@ def give_plan_endpoint():
         {"$set": {"override_plan": plan, "override_plan_expires": expires}},
     )
     return jsonify({"success": True})
-  
+
 @app.route("/api/remove_plan", methods=["POST"])
 @requires_admin
 def remove_plan_endpoint():
