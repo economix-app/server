@@ -935,6 +935,7 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         <p>/clear_user [username] - Clears all messages from a specific user</p>
         <p>/delete_many [amount] - Deletes specified number of messages</p>
         <p>/ban [username] [duration] [reason] - Bans a user</p>
+        <p>/ban_ip [ip] [duration] [reason] - Bans an IP address</p>
         <p>/unban [username] - Unbans a user</p>
         <p>/sudo [username] [message] - Sends message as user</p>
         <h4>Admin & Mod</h4>
