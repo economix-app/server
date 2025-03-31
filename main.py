@@ -965,7 +965,8 @@ def parse_command(username: str, command: str, room_name: str) -> str:
                 "visibility": [username, recipient],
             }
         )
-    return "Invalid command"
+    else:
+        return "Invalid command"
 
 
 def send_message(
