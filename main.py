@@ -2398,6 +2398,34 @@ def get_company_endpoint():
     company = Collections["companies"].find_one({"id": company["id"]})
     return jsonify({"company": company})
 
+@app.route("/api/send_tokens", methods=["POST"])
+@required_unbanned
+def send_tokens_endpoint():
+    data = request.get_data()
+    recipient = data["recipient"]
+    amount = int(data["amount"])
+
+    recipent_user = Collections["users"].find({"username": recipient})
+    if not recipient_user:
+        return jsonify({"error": "Recipient not Found", "code": "user-not-found"})
+
+    if amount <= 0:
+        return jsonify({"error": "Invalid Amount", "code": "invalid-amount"})
+
+    user = Collections["users"].find({"username", request.username})
+    if user["tokens"] < amount:
+        return jsonify({"error": "Not enough Tokens", "code": "not-enough-tokens"})
+
+    Collections["users"].update_one({"username": request.username}, {"$inc": {
+        "tokens": -amount
+    }})
+
+    Collections["users"].update_one({"username": recipient}, {"$inc": {
+        "tokens": amount
+    }})
+
+    return jsonify({"success": True})
+
 @app.route("/api/reset_cooldowns", methods=["POST"])
 @requires_admin
 def reset_cooldowns_endpoint():
