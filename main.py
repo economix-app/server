@@ -2020,6 +2020,92 @@ def redeem_creator_code_endpoint():
     return jsonify({"success": True, "tokens": extra_tokens, "pets": extra_pets})
 
 
+@app.route("/api/coin_flip", methods=["POST"])
+@requires_unbanned
+def coin_flip_endpoint():
+    data = request.get_json()
+    bet_amount = data.get("bet_amount")
+    choice = data.get("choice")  # "heads" or "tails"
+
+    if not bet_amount or not choice:
+        return (
+            jsonify(
+                {"error": "Missing bet amount or choice", "code": "missing-parameters"}
+            ),
+            400,
+        )
+
+    try:
+        bet_amount = float(bet_amount)
+        if bet_amount <= 0:
+            raise ValueError
+    except ValueError:
+        return (
+            jsonify({"error": "Invalid bet amount", "code": "invalid-bet-amount"}),
+            400,
+        )
+
+    if choice not in ["heads", "tails"]:
+        return jsonify({"error": "Invalid choice", "code": "invalid-choice"}), 400
+
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    if user["tokens"] < bet_amount:
+        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
+
+    # Simulate coin flip
+    result = random.choice(["heads", "tails"])
+    won = result == choice
+
+    # Update tokens
+    if won:
+        winnings = bet_amount * 2  # Double the bet on win
+        Collections["users"].update_one(
+            {"username": request.username},
+            {
+                "$inc": {"tokens": winnings - bet_amount}
+            },  # Net gain is winnings minus initial bet
+        )
+    else:
+        Collections["users"].update_one(
+            {"username": request.username}, {"$inc": {"tokens": -bet_amount}}
+        )
+
+    # Log the transaction
+    Collections["users"].update_one(
+        {"username": request.username},
+        {
+            "$push": {
+                "history": {
+                    "action": "coin_flip",
+                    "bet_amount": bet_amount,
+                    "choice": choice,
+                    "result": result,
+                    "won": won,
+                    "timestamp": int(time.time()),
+                }
+            }
+        },
+    )
+
+    send_discord_notification(
+        "Coin Flip",
+        f"User {request.username} bet {bet_amount} tokens on {choice}. Result: {result}. {'Won' if won else 'Lost'} {won and winnings or bet_amount} tokens.",
+        0x00FF00 if won else 0xFF0000,
+    )
+
+    return jsonify(
+        {
+            "success": True,
+            "result": result,
+            "won": won,
+            "winnings": won and winnings or 0,
+        }
+    )
+
+
 @app.route("/api/reset_cooldowns", methods=["POST"])
 @requires_admin
 def reset_cooldowns_endpoint():
