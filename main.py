@@ -1001,7 +1001,7 @@ def send_message(
     sanitized_message = profanity.censor(html.escape(message_content.strip()))
     if not sanitized_message:
         return jsonify({"error": "Message empty", "code": "empty-message"}), 400
-    if len(sanitized_message) > 100:
+    if len(sanitized_message) > 200:
         return jsonify({"error": "Message too long", "code": "message-too-long"}), 400
 
     if sanitized_message.startswith("/"):
