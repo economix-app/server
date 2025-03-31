@@ -142,6 +142,45 @@ def create_indexes():
 create_indexes()
 
 
+def is_ip_blocked(ip: str) -> bool:
+    """Check if an IP or its subnet is blocked"""
+    current_time = time.time()
+    # Check exact IP match
+    if Collections["blocked_ips"].find_one(
+        {"ip": ip, "blocked_until": {"$gte": current_time}}
+    ):
+        return True
+
+    # Check subnet if enabled
+    if AUTOMOD_CONFIG["SUBNET_BLOCKING"]:
+        subnet = ".".join(ip.split(".")[:3]) + ".0/24"
+        if Collections["blocked_ips"].find_one(
+            {"subnet": subnet, "blocked_until": {"$gte": current_time}}
+        ):
+            return True
+    return False
+
+
+def block_ip(ip: str, duration: str, reason: str, subnet: bool = False) -> None:
+    """Block an IP address or subnet"""
+    end_time = parse_time(duration)
+    block_data = {
+        "ip": ip,
+        "blocked_until": end_time,
+        "reason": reason,
+        "timestamp": int(time.time()),
+    }
+    if subnet and AUTOMOD_CONFIG["SUBNET_BLOCKING"]:
+        block_data["subnet"] = ".".join(ip.split(".")[:3]) + ".0/24"
+
+    Collections["blocked_ips"].update_one({"ip": ip}, {"$set": block_data}, upsert=True)
+    send_discord_notification(
+        "IP Blocked",
+        f"IP {ip}{' subnet' if subnet else ''} blocked until {time.ctime(end_time)}. Reason: {reason}",
+        0xFF0000,
+    )
+
+
 # Utility Functions
 def split_name(name: str) -> Dict[str, str]:
     parts = name.split(" ")
@@ -649,16 +688,14 @@ def set_level(username: str, level: int):
 
 # Core Handlers
 def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
+    if is_ip_blocked(ip):
+        return jsonify({"error": "IP blocked", "code": "ip-blocked"}), 403
+
     if not username or not password:
         return (
             jsonify({"error": "Missing credentials", "code": "missing-credentials"}),
             400,
         )
-
-    if Collections["blocked_ips"].find_one(
-        {"ip": ip, "blocked_until": {"$gt": time.time()}}
-    ):
-        return jsonify({"error": "IP blocked", "code": "ip-blocked"}), 429
 
     current_time = time.time()
     recent_attempts = Collections["account_creation_attempts"].count_documents(
@@ -671,11 +708,11 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
     )
 
     if recent_attempts >= AUTOMOD_CONFIG["ACCOUNT_CREATION_THRESHOLD"]:
-        blocked_until = current_time + AUTOMOD_CONFIG["ACCOUNT_CREATION_BLOCK_DURATION"]
-        Collections["blocked_ips"].update_one(
-            {"ip": ip},
-            {"$set": {"blocked_until": blocked_until, "timestamp": current_time}},
-            upsert=True,
+        block_ip(
+            ip,
+            str(AUTOMOD_CONFIG["ACCOUNT_CREATION_BLOCK_DURATION"] + "s"),
+            "Account creation spam",
+            subnet=True,
         )
         Collections["users"].update_many(
             {"creation_ip": ip},
@@ -699,11 +736,6 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
                 "timestamp": current_time,
                 "type": "system",
             }
-        )
-        send_discord_notification(
-            "AutoMod Action",
-            f"Blocked IP {ip} for account spam. Banned {recent_attempts + 1} accounts.",
-            0xFF0000,
         )
         return jsonify({"error": "Account spam detected", "code": "account-spam"}), 429
 
@@ -758,6 +790,9 @@ def login(
     code: Optional[str] = None,
     token: Optional[str] = None,
 ) -> Tuple[dict, int]:
+    if is_ip_blocked(ip):
+        return jsonify({"error": "IP blocked", "code": "ip-blocked"}), 403
+
     recent_fails = Collections["failed_logins"].count_documents(
         {
             "ip": ip,
@@ -765,14 +800,11 @@ def login(
         }
     )
     if recent_fails >= AUTOMOD_CONFIG["FAILED_LOGIN_THRESHOLD"]:
-        blocked_until = time.time() + AUTOMOD_CONFIG["FAILED_LOGIN_WINDOW"]
-        Collections["blocked_ips"].insert_one(
-            {
-                "ip": ip,
-                "subnet": ".".join(ip.split(".")[:3]) + ".0/24",
-                "blocked_until": blocked_until,
-                "reason": "Too many failed logins",
-            }
+        block_ip(
+            ip,
+            str(AUTOMOD_CONFIG["FAILED_LOGIN_WINDOW"] + "s"),
+            "Too many failed logins",
+            subnet=True,
         )
         return (
             jsonify({"error": "Too many failed attempts", "code": "login-locked"}),
@@ -911,6 +943,10 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         <p>/list_banned - Lists banned users</p>
         <p>/help - Shows this help</p>
         """
+    elif cmd == "ban_ip" and len(args) >= 3 and is_admin:
+        ip, duration, *reason = args
+        ban_ip(ip, duration, " ".join(reason))
+        return f"Banned IP <b>{ip}</b> for <b>{' '.join(reason)}</b> (<b>{duration}</b>)"
     elif cmd == "msg" and len(args) >= 2:
         recipient = args[0]
         message = " ".join(args[1:])
@@ -1322,6 +1358,33 @@ def delete_message(message_id: str) -> Tuple[dict, int]:
         0xFF0000,
     )
     return jsonify({"success": True})
+
+def ban_ip(ip: str, length: str, reason: str, subnet: bool = False) -> Tuple[dict, int]:
+    if not re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
+        return jsonify({"error": "Invalid IP address", "code": "invalid-ip"}), 400
+    
+    block_ip(ip, length, f"Admin ban: {reason}", subnet)
+    return jsonify({"success": True})
+
+def unban_ip(ip: str) -> Tuple[dict, int]:
+    if not re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
+        return jsonify({"error": "Invalid IP address", "code": "invalid-ip"}), 400
+    
+    Collections["blocked_ips"].delete_one({"ip": ip})
+    send_discord_notification(
+        "IP Unbanned",
+        f"Admin {request.username} unbanned IP {ip}",
+        0xFFA500
+    )
+    return jsonify({"success": True})
+
+def get_banned_ips() -> Tuple[dict, int]:
+    current_time = time.time()
+    banned_ips = Collections["blocked_ips"].find(
+        {"blocked_until": {"$gte": current_time}},
+        {"_id": 0}
+    )
+    return jsonify({"banned_ips": list(banned_ips)})
 
 
 # Routes
@@ -2104,7 +2167,7 @@ def coin_flip_endpoint():
             "winnings": won and winnings or 0,
         }
     )
-    
+
 @app.route("/api/dice_roll", methods=["POST"])
 @requires_unbanned
 def dice_roll_endpoint():
@@ -2404,3 +2467,25 @@ def delete_creator_code_endpoint():
 def get_creator_codes_endpoint():
     codes = Collections["creator_codes"].find({}, {"_id": 0})
     return jsonify({"creator_codes": [code for code in codes]})
+
+@app.route("/api/ban_ip", methods=["POST"])
+@requires_admin
+def ban_ip_endpoint():
+    data = request.get_json()
+    return ban_ip(
+        data.get("ip"),
+        data.get("length"),
+        data.get("reason"),
+        data.get("subnet", False)
+    )
+
+@app.route("/api/unban_ip", methods=["POST"])
+@requires_admin
+def unban_ip_endpoint():
+    data = request.get_json()
+    return unban_ip(data.get("ip"))
+
+@app.route("/api/get_banned_ips", methods=["GET"])
+@requires_admin
+def get_banned_ips_endpoint():
+    return get_banned_ips()
