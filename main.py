@@ -2104,6 +2104,81 @@ def coin_flip_endpoint():
             "winnings": won and winnings or 0,
         }
     )
+    
+@app.route("/api/dice_roll", methods=["POST"])
+@requires_unbanned
+def dice_roll_endpoint():
+    data = request.get_json()
+    bet_amount = data.get("bet_amount")
+    choice = data.get("choice")  # Number from 1 to 6
+
+    # Validate input
+    if not bet_amount or not choice:
+        return jsonify({"error": "Missing bet amount or choice", "code": "missing-parameters"}), 400
+    
+    try:
+        bet_amount = float(bet_amount)
+        if bet_amount <= 0:
+            raise ValueError
+    except ValueError:
+        return jsonify({"error": "Invalid bet amount", "code": "invalid-bet-amount"}), 400
+
+    try:
+        choice = int(choice)
+        if choice < 1 or choice > 6:
+            raise ValueError
+    except ValueError:
+        return jsonify({"error": "Invalid choice, must be between 1 and 6", "code": "invalid-choice"}), 400
+
+    # Fetch user data
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+    
+    if user["tokens"] < bet_amount:
+        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
+
+    # Simulate dice roll
+    result = random.randint(1, 6)
+    won = result == choice
+
+    # Update user tokens
+    if won:
+        winnings = bet_amount * 5  # 5x payout
+        Collections["users"].update_one(
+            {"username": request.username},
+            {"$inc": {"tokens": winnings - bet_amount}}  # Net gain
+        )
+    else:
+        Collections["users"].update_one(
+            {"username": request.username},
+            {"$inc": {"tokens": -bet_amount}}
+        )
+
+    # Log transaction
+    Collections["users"].update_one(
+        {"username": request.username},
+        {
+            "$push": {
+                "history": {
+                    "action": "dice_roll",
+                    "bet_amount": bet_amount,
+                    "choice": choice,
+                    "result": result,
+                    "won": won,
+                    "timestamp": int(time.time())
+                }
+            }
+        }
+    )
+
+    send_discord_notification(
+        "Dice Roll",
+        f"User {request.username} bet {bet_amount} tokens on {choice}. Result: {result}. {'Won' if won else 'Lost'} {won and winnings or bet_amount} tokens.",
+        0x00FF00 if won else 0xFF0000
+    )
+
+    return jsonify({"success": True, "result": result, "won": won, "winnings": won and winnings or 0})
 
 
 @app.route("/api/reset_cooldowns", methods=["POST"])
