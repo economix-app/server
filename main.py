@@ -951,7 +951,7 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         <p>/list_banned - Lists banned users</p>
         <p>/help - Shows this help</p>
         """
-    elif cmd == "msg":
+    elif cmd == "msg" and len(args) >= 2:
         recipient = args[0]
         message = " ".join(args[1:])
         Collections["messages"].insert_one(
