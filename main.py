@@ -77,34 +77,8 @@ AUTOMOD_CONFIG = {
     "MESSAGE_IP_WINDOW": 5,
     "FAILED_LOGIN_THRESHOLD": 5,
     "FAILED_LOGIN_WINDOW": 60,
-    "MAX_LINKS": 2,
-    "MAX_CAPS_RATIO": 0.7,
     "MIN_ACCOUNT_AGE": 3600,
     "SUBNET_BLOCKING": True,
-    "SPAM_PATTERNS": [
-        r"(?i)free\s+money",
-        r"(?i)buy\s+followers",
-        r"(?i)http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
-        r"(?i)cheap\s+loans",
-        r"(?i)work\s+from\s+home",
-        r"(?i)make\s+money\s+fast",
-        r"(?i)weight\s+loss\s+supplements",
-        r"(?i)earn\s+\$\d+\s+per\s+day",
-        r"(?i)limited\s+time\s+offer",
-        r"(?i)click\s+here\s+to\s+claim",
-        r"(?i)congratulations\s+you\s+won",
-        r"(?i)instant\s+cash",
-        r"(?i)no\s+credit\s+check\s+loans",
-        r"(?i)100%\s+guaranteed",
-        r"(?i)miracle\s+cure",
-        r"(?i)risk\s+free\s+trial",
-        r"(?i)as\s+seen\s+on\s+TV",
-        r"(?i)win\s+a\s+free\s+(iPhone|gift card|vacation)",
-        r"(?i)boost\s+your\s+SEO\s+ranking",
-        r"(?i)hot\s+singles\s+in\s+your\s+area",
-        r"(?i)order\s+now\s+and\s+save",
-        r"(?i)act\s+now\s+before\s+it's\s+gone",
-    ],
 }
 
 
@@ -213,20 +187,6 @@ def parse_time(length: str) -> int:
         }
         duration += value * multipliers.get(unit, 0)
     return int(time.time()) + duration
-
-
-def check_content_spam(message: str) -> bool:
-    config = AUTOMOD_CONFIG
-    for pattern in config["SPAM_PATTERNS"]:
-        if re.search(pattern, message):
-            return True
-    if len(re.findall(r"http[s]?://", message)) > config["MAX_LINKS"]:
-        return True
-    if len(message) > 10:
-        caps_count = sum(1 for c in message if c.isupper())
-        if caps_count / len(message) > config["MAX_CAPS_RATIO"]:
-            return True
-    return False
 
 
 def get_conversation_id(user1: str, user2: str) -> str:
@@ -994,21 +954,6 @@ def send_message(
             },
         }
     )
-
-    if check_content_spam(message_content):
-        Collections["messages"].delete_many(
-            {"username": username, "timestamp": {"$gt": time.time() - 2}}
-        )
-        Collections["user_history"].insert_one(
-            {
-                "username": username,
-                "type": "content_spam",
-                "timestamp": time.time(),
-                "details": message_content[:100],
-            }
-        )
-        mute_user(username, AUTOMOD_CONFIG["MESSAGE_SPAM_MUTE_DURATION"], notify=False)
-        return jsonify({"error": "Message blocked", "code": "content-spam"}), 403
 
     if message_count >= AUTOMOD_CONFIG["MESSAGE_SPAM_THRESHOLD"]:
         is_new = (current_time - user["created_at"]) < AUTOMOD_CONFIG["MIN_ACCOUNT_AGE"]
