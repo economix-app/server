@@ -62,6 +62,7 @@ Collections = {
     "failed_logins": db.failed_logins,
     "user_history": db.user_history,
     "creator_codes": db.creator_codes,
+    "companies": db.companies,
 }
 
 # AutoMod Configuration
@@ -137,6 +138,8 @@ def create_indexes():
     )
     Collections["user_history"].create_index([("username", ASCENDING)])
     Collections["user_history"].create_index([("code", ASCENDING)])
+    Collections["companies"].create_index([("name", ASCENDING)], unique=True)
+    Collections["companies"].create_index([("owner", ASCENDING)])
 
 
 create_indexes()
@@ -492,6 +495,47 @@ def update_pet(pet_id: str):
             {"id": pet_id}, {"$set": {"benefits": pet["benefits"]}}
         )
 
+def update_company(company_id: str):
+    """Update company state, including token generation and distribution."""
+    company = Collections["companies"].find_one({"id": company_id})
+    if not company:
+        return
+
+    now = int(time.time())
+    hours_since_last = (now - company.get("last_distribution", company["created_at"])) // 3600
+    if hours_since_last > 0:
+        # Generate tokens: 5 tokens/hr per worker
+        new_tokens = company["workers"] * 5 * hours_since_last
+        Collections["companies"].update_one(
+            {"id": company_id},
+            {"$inc": {"tokens": new_tokens}}
+        )
+
+    # Distribute tokens daily
+    days_since_last = (now - company.get("last_distribution", company["created_at"])) // 86400
+    if days_since_last >= 1:
+        company = Collections["companies"].find_one({"id": company_id})  # Refresh data
+        members = company["members"]
+        if members and company["tokens"] > 0:
+            tokens_per_member = company["tokens"] // len(members)
+            for member in members:
+                Collections["users"].update_one(
+                    {"username": member},
+                    {"$inc": {"tokens": tokens_per_member}}
+                )
+            Collections["companies"].update_one(
+                {"id": company_id},
+                {"$set": {"tokens": 0, "last_distribution": now}}
+            )
+            send_discord_notification(
+                "Company Distribution",
+                f"Company {company['name']} distributed {tokens_per_member} tokens to each of {len(members)} members.",
+                0x00FF00
+            )
+
+def can_buy_worker(company):
+    """Check if more workers can be bought."""
+    return company["workers"] < 2 * len(company["members"])
 
 def level_up_pet(pet_id: str, exp_gain: int):
     pet = Collections["pets"].find_one({"id": pet_id})
@@ -577,6 +621,10 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         )
     for pet_id in user["pets"]:
         update_pet(pet_id)
+
+    company = Collections["companies"].find_one({"members": username})
+    if company:
+        update_company(company["id"])
 
 
 # Item and Pet Generation
@@ -2244,6 +2292,111 @@ def dice_roll_endpoint():
 
     return jsonify({"success": True, "result": result, "won": won, "winnings": won and winnings or 0})
 
+@app.route("/api/create_company", methods=["POST"])
+@requires_unbanned
+def create_company_endpoint():
+    data = request.get_json()
+    name = data.get("name")
+    user = Collections["users"].find_one({"username": request.username})
+
+    if not name or not re.match(r"^[a-zA-Z0-9_-]{3,20}$", name):
+        return jsonify({"error": "Invalid company name"}), 400
+    if user["tokens"] < 500:
+        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
+    if Collections["companies"].find_one({"owner": request.username}):
+        return jsonify({"error": "You already own a company"}), 400
+
+    company = {
+        "id": str(uuid4()),
+        "name": name,
+        "owner": request.username,
+        "members": [request.username],
+        "workers": 0,
+        "tokens": 0,
+        "last_distribution": int(time.time()),
+        "created_at": int(time.time())
+    }
+    Collections["companies"].insert_one(company)
+    Collections["users"].update_one(
+        {"username": request.username},
+        {"$inc": {"tokens": -500}}
+    )
+    send_discord_notification(
+        "Company Created",
+        f"{request.username} created company {name}",
+        0x00FF00
+    )
+    return jsonify({"success": True, "company": company})
+
+@app.route("/api/invite_to_company", methods=["POST"])
+@requires_unbanned
+def invite_to_company_endpoint():
+    data = request.get_json()
+    company_id = data.get("company_id")
+    invitee = data.get("username")
+
+    company = Collections["companies"].find_one({"id": company_id, "owner": request.username})
+    if not company:
+        return jsonify({"error": "Company not found or not owner"}), 404
+    if len(company["members"]) >= 10:
+        return jsonify({"error": "Company is full"}), 400
+    if not Collections["users"].find_one({"username": invitee}):
+        return jsonify({"error": "User not found"}), 404
+    if invitee in company["members"]:
+        return jsonify({"error": "User already in company"}), 400
+
+    Collections["companies"].update_one(
+        {"id": company_id},
+        {"$push": {"members": invitee}}
+    )
+    send_discord_notification(
+        "Company Invite",
+        f"{request.username} invited {invitee} to {company['name']}",
+        0xFFFF00
+    )
+    return jsonify({"success": True})
+
+@app.route("/api/buy_worker", methods=["POST"])
+@requires_unbanned
+def buy_worker_endpoint():
+    data = request.get_json()
+    company_id = data.get("company_id")
+    user = Collections["users"].find_one({"username": request.username})
+    company = Collections["companies"].find_one({"id": company_id, "owner": request.username})
+
+    if not company:
+        return jsonify({"error": "Company not found or not owner"}), 404
+    if user["tokens"] < 50:
+        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
+    update_company(company_id)  # Ensure latest state
+    company = Collections["companies"].find_one({"id": company_id})
+    if not can_buy_worker(company):
+        return jsonify({"error": "Max workers reached"}), 400
+
+    Collections["companies"].update_one(
+        {"id": company_id},
+        {"$inc": {"workers": 1}}
+    )
+    Collections["users"].update_one(
+        {"username": request.username},
+        {"$inc": {"tokens": -50}}
+    )
+    send_discord_notification(
+        "Worker Purchased",
+        f"{request.username} bought a worker for {company['name']}",
+        0x00FF00
+    )
+    return jsonify({"success": True})
+
+@app.route("/api/get_company", methods=["GET"])
+@requires_unbanned
+def get_company_endpoint():
+    company = Collections["companies"].find_one({"members": request.username})
+    if not company:
+        return jsonify({"company": None})
+    update_company(company["id"])
+    company = Collections["companies"].find_one({"id": company["id"]})
+    return jsonify({"company": company})
 
 @app.route("/api/reset_cooldowns", methods=["POST"])
 @requires_admin
