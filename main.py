@@ -2405,14 +2405,14 @@ def send_tokens_endpoint():
     recipient = data["recipient"]
     amount = int(data["amount"])
 
-    recipent_user = Collections["users"].find({"username": recipient})
+    recipent_user = Collections["users"].find_one({"username": recipient})
     if not recipient_user:
         return jsonify({"error": "Recipient not Found", "code": "user-not-found"})
 
     if amount <= 0:
         return jsonify({"error": "Invalid Amount", "code": "invalid-amount"})
 
-    user = Collections["users"].find({"username", request.username})
+    user = Collections["users"].find_one({"username", request.username})
     if user["tokens"] < amount:
         return jsonify({"error": "Not enough Tokens", "code": "not-enough-tokens"})
 
