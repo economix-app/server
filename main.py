@@ -2804,7 +2804,7 @@ def set_company_tokens_endpoint():
     if not Collections["companies"].find_one({"name": company}):
         return jsonify({"error": "Company not found"}), 404
 
-    Collections["company"].update_one({"name": company}, {"$set": {"tokens": tokens}})
+    Collections["companies"].update_one({"name": company}, {"$set": {"tokens": tokens}})
     
     send_discord_notification("Company Tokens Edited", f"Admin {request.username} set {company}'s tokens to {tokens}")
     
