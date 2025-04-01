@@ -22,6 +22,9 @@ import io
 from better_profanity import profanity
 import requests
 from logging.handlers import RotatingFileHandler
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import queue
 
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
@@ -45,6 +48,35 @@ handler.setFormatter(
 )
 app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
+
+log_file = open("app.log", "r")
+log_file.seek(0, 2)  # Seek to the end of the file
+active_queues = set()  # Track active SSE connections
+
+class LogHandler(FileSystemEventHandler):
+    """Handle log file events detected by watchdog."""
+    def on_modified(self, event):
+        """Read new lines when the log file is modified."""
+        if event.src_path == "app.log":
+            while True:
+                line = log_file.readline()
+                if not line:
+                    break
+                for q in active_queues:
+                    q.put(line)
+
+    def on_created(self, event):
+        """Reopen the log file when a new one is created (e.g., after rotation)."""
+        if event.src_path == "app.log":
+            global log_file
+            log_file.close()
+            log_file = open("app.log", "r")
+            log_file.seek(0, 2)
+
+# Initialize and start the watchdog observer
+observer = Observer()
+observer.schedule(LogHandler(), path='.', recursive=False)
+observer.start()
 
 # Database Setup
 client = MongoClient(os.environ.get("MONGODB_URI"), maxPoolSize=50, connect=False)
@@ -2671,3 +2703,17 @@ def unban_ip_endpoint():
 @requires_admin
 def get_banned_ips_endpoint():
     return get_banned_ips()
+
+@app.route("/api/logs", methods=["GET"])
+@requires_admin
+def stream_logs():
+    q = queue.Queue()
+    active_queues.add(q)
+    def generate():
+        try:
+            while True:
+                line = q.get()  # Wait for new log lines
+                yield f"data: {line}\n\n"
+        finally:
+            active_queues.remove(q)  # Clean up when client disconnects
+    return Response(generate(), mimetype="text/event-stream")
