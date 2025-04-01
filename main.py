@@ -2331,7 +2331,7 @@ def create_company_endpoint():
     name = data.get("name")
     user = Collections["users"].find_one({"username": request.username})
 
-    if not name or not re.match(r"^[a-zA-Z0-9_-]{3,20}$", name):
+    if not name or not re.match(r"^[a-zA-Z0-9_- ]{3,20}$", name):
         return jsonify({"error": "Invalid company name"}), 400
     if user["tokens"] < 500:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
