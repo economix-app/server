@@ -2794,6 +2794,23 @@ def get_banned_ips_endpoint():
     return get_banned_ips()
 
 
+@app.route("/api/set_company_tokens", methods=["POST"])
+@requires_admin
+def set_company_tokens_endpoint():
+    data = request.get_json()
+    company = data.get("company")
+    tokens = data.get("tokens")
+
+    if not Collections["companies"].find_one({"name": company}):
+        return jsonify({"error": "Company not found"}), 404
+
+    Collections["company"].update_one({"name": company}, {"$set": {"tokens": tokens}})
+    
+    send_discord_notification("Company Tokens Edited", f"Admin {request.username} set {company}'s tokens to {tokens}")
+    
+    return jsonify({"success": True})
+
+
 @app.route("/api/logs", methods=["GET"])
 @requires_admin
 def stream_logs():
