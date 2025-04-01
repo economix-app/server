@@ -540,7 +540,7 @@ def update_company(company_id: str):
     last_worked = company.get("last_worked", company["created_at"])
     hours_since_last_worked = (now - last_worked) // 3600
     if hours_since_last_worked > 0:
-        workers = Collections["companies"].find_one({"id": company_id})
+        workers = Collections["companies"].find_one({"id": company_id})["workers"]
         tokens = workers * 5 * hours_since_last_worked
         Collections["companies"].update_one(
             {"id": company_id},
