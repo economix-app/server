@@ -7,7 +7,7 @@ from uuid import uuid4
 from threading import Thread
 from typing import Dict, Optional, Tuple
 
-from flask import Flask, request, jsonify, send_file, redirect
+from flask import Flask, request, jsonify, send_file, redirect, Response
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from hashlib import sha256
@@ -2437,7 +2437,7 @@ def send_tokens_endpoint():
     recipient = data["recipient"]
     amount = int(data["amount"])
 
-    recipent_user = Collections["users"].find_one({"username": recipient})
+    recipient_user = Collections["users"].find_one({"username": recipient})
     if not recipient_user:
         return jsonify({"error": "Recipient not Found", "code": "user-not-found"})
 
