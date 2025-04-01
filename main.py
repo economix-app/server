@@ -413,8 +413,7 @@ def authenticate_user():
         "register_endpoint",
         "login_endpoint",
         "index",
-        "stats_endpoint",
-        "stream_logs"
+        "stats_endpoint"
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
         return
@@ -2706,6 +2705,7 @@ def get_banned_ips_endpoint():
     return get_banned_ips()
 
 @app.route("/api/logs", methods=["GET"])
+@required_admin
 def stream_logs():
     q = queue.Queue()
     active_queues.add(q)
