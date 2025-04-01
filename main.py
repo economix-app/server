@@ -532,20 +532,19 @@ def update_pet(pet_id: str):
 
 
 def update_company(company_id: str):
-    """Update company state, including token generation and distribution."""
     company = Collections["companies"].find_one({"id": company_id})
     if not company:
         return
 
     now = int(time.time())
-    hours_since_last = (
-        now - company.get("last_distribution", company["created_at"])
-    ) // 3600
-    if hours_since_last > 0:
-        # Generate tokens: 5 tokens/hr per worker
-        new_tokens = company["workers"] * 5 * hours_since_last
+    last_worked = company.get("last_worked", company["created_at"])
+    hours_since_last_worked = (now - last_worked) // 3600
+    if hours_since_last_worked > 0:
+        workers = Collections["companies"].find_one({"id": company_id})
+        tokens = workers * 5 * hours_since_last_worked
         Collections["companies"].update_one(
-            {"id": company_id}, {"$inc": {"tokens": new_tokens}}
+            {"id": company_id},
+            {"$inc": {"tokens": tokens}, "$set": {"last_worked": now}},
         )
 
     # Distribute tokens daily
@@ -2554,20 +2553,19 @@ def add_mod_endpoint():
 def remove_mod_endpoint():
     data = request.get_json()
     return remove_mod(data.get("username"))
-  
+
+
 @app.route("/api/add_media", methods=["POST"])
 @requires_admin
 def add_media_endpoint():
     data = request.get_json()
     username = data.get("username")
-    
+
     if not username:
         return jsonify({"error": "Username not provided"}), 400
 
-    Collections["users"].update_one(
-        {"username": username}, {"$set": {"type": "media"}}
-    )
-    
+    Collections["users"].update_one({"username": username}, {"$set": {"type": "media"}})
+
     send_discord_notification(
         "Media Added",
         f"Admin {request.username} added {username} as media",
@@ -2575,20 +2573,19 @@ def add_media_endpoint():
     )
 
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/remove_media", methods=["POST"])
 @requires_admin
 def remove_media_endpoint():
     data = request.get_json()
     username = data.get("username")
-    
+
     if not username:
         return jsonify({"error": "Username not provided"}), 400
 
-    Collections["users"].update_one(
-        {"username": username}, {"$set": {"type": "user"}}
-    )
-    
+    Collections["users"].update_one({"username": username}, {"$set": {"type": "user"}})
+
     send_discord_notification(
         "Media Removed",
         f"Admin {request.username} removed {username} as media",
