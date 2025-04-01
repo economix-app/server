@@ -2497,6 +2497,10 @@ def send_tokens_endpoint():
         {"username": recipient}, {"$inc": {"tokens": amount}}
     )
 
+    send_discord_notification(
+        "Tokens Sent", f"{request.username} sent {amount} tokens to {recipient}"
+    )
+
     return jsonify({"success": True})
 
 
