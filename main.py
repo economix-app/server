@@ -585,6 +585,12 @@ def update_company(company_id: str):
     if not company:
         return
 
+    if type(company["tokens"]) != int:
+        Collections["companies"].update_one(
+            {"id": company_id},
+            {"$set": {"tokens": int(company["tokens"])}}
+        )
+
     now = int(time.time())
     last_worked = company.get("last_worked", company["created_at"])
     hours_since_last_worked = (now - last_worked) // 3600
@@ -2853,7 +2859,7 @@ def set_company_tokens_endpoint():
     if not Collections["companies"].find_one({"name": company}):
         return jsonify({"error": "Company not found"}), 404
 
-    Collections["companies"].update_one({"name": company}, {"$set": {"tokens": tokens}})
+    Collections["companies"].update_one({"name": company}, {"$set": {"tokens": int(tokens)}})
     
     send_discord_notification("Company Tokens Edited", f"Admin {request.username} set {company}'s tokens to {tokens}")
     
