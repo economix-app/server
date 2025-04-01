@@ -2705,7 +2705,7 @@ def get_banned_ips_endpoint():
     return get_banned_ips()
 
 @app.route("/api/logs", methods=["GET"])
-@required_admin
+@requires_admin
 def stream_logs():
     q = queue.Queue()
     active_queues.add(q)
