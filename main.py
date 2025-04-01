@@ -2864,8 +2864,7 @@ def set_company_tokens_endpoint():
 @requires_admin
 def get_logs():
     with open("app.log", "r") as f:
-        lines = f.read().splitlines()
-        return jsonify(lines)
+        return f.read()
 
 
 @app.route("/api/ping", methods=["GET"])
