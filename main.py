@@ -2396,6 +2396,7 @@ def create_company_endpoint():
     send_discord_notification(
         "Company Created", f"{request.username} created company {name}", 0x00FF00
     )
+    del company["_id"]
     return jsonify({"success": True, "company": company})
 
 
@@ -2467,7 +2468,7 @@ def get_company_endpoint():
     if not company:
         return jsonify({"company": None})
     update_company(company["id"])
-    company = Collections["companies"].find_one({"id": company["id"]})
+    company = Collections["companies"].find_one({"id": company["id"]}, {"_id": 0})
     return jsonify({"company": company})
 
 
