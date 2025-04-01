@@ -79,7 +79,7 @@ observer.schedule(LogHandler(), path='.', recursive=False)
 observer.start()
 
 # Database Setup
-client = MongoClient(os.environ.get("MONGODB_URI"), maxPoolSize=50, connect=False)
+client = MongoClient(os.environ.get("MONGODB_URI"), maxPoolSize=50)
 db = client[os.environ.get("MONGODB_DB")]
 Collections = {
     "users": db.users,
@@ -2717,3 +2717,7 @@ def stream_logs():
         finally:
             active_queues.remove(q)  # Clean up when client disconnects
     return Response(generate(), mimetype="text/event-stream")
+
+@app.route("/api/ping", methods=["GET"])
+def ping():
+    return "200 OK"
