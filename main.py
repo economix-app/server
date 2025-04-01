@@ -2431,7 +2431,7 @@ def get_company_endpoint():
     return jsonify({"company": company})
 
 @app.route("/api/send_tokens", methods=["POST"])
-@required_unbanned
+@requires_unbanned
 def send_tokens_endpoint():
     data = request.get_data()
     recipient = data["recipient"]
