@@ -2554,6 +2554,36 @@ def add_mod_endpoint():
 def remove_mod_endpoint():
     data = request.get_json()
     return remove_mod(data.get("username"))
+  
+@app.route("/api/add_media", methods=["POST"])
+@requires_admin
+def add_media_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    
+    if not username:
+        return jsonify({"error": "Username not provided"}), 400
+
+    Collections["users"].update_one(
+        {"username": username}, {"$set": {"type": "media"}}
+    )
+
+    return jsonify({"success": True})
+  
+@app.route("/api/remove_media", methods=["POST"])
+@requires_admin
+def remove_media_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    
+    if not username:
+        return jsonify({"error": "Username not provided"}), 400
+
+    Collections["users"].update_one(
+        {"username": username}, {"$set": {"type": "user"}}
+    )
+
+    return jsonify({"success": True})
 
 
 @app.route("/api/edit_item", methods=["POST"])
