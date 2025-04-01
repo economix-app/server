@@ -646,11 +646,11 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
     for item_id in user["items"]:
         update_item(item_id)
 
-    pet_limit = 1
+    pet_limit = 2
     if has_pro(username):
-        pet_limit = 3
+        pet_limit = 4
     if has_proplus(username):
-        pet_limit = 5
+        pet_limit = 8
 
     if len(user["pets"]) > pet_limit:
         refund = (len(user["pets"]) - 1) * 100
