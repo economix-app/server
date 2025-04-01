@@ -2862,19 +2862,9 @@ def set_company_tokens_endpoint():
 
 @app.route("/api/logs", methods=["GET"])
 @requires_admin
-def stream_logs():
-    q = queue.Queue()
-    active_queues.add(q)
-
-    def generate():
-        try:
-            while True:
-                line = q.get()  # Wait for new log lines
-                yield f"data: {line}\n\n"
-        finally:
-            active_queues.remove(q)  # Clean up when client disconnects
-
-    return Response(generate(), mimetype="text/event-stream")
+def get_logs():
+    with open("app.log", "r") as f:
+        return jsonify({"logs": f.read()})
 
 
 @app.route("/api/ping", methods=["GET"])
