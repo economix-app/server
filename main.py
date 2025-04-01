@@ -6,6 +6,8 @@ import logging
 from uuid import uuid4
 from threading import Thread
 from typing import Dict, Optional, Tuple
+import traceback
+import sys
 
 from flask import Flask, request, jsonify, send_file, redirect, Response
 from flask_cors import CORS
@@ -31,6 +33,8 @@ ITEM_CREATE_COOLDOWN = 60  # 1 minute
 TOKEN_MINE_COOLDOWN = 180  # 3 minutes
 MAX_ITEM_PRICE = 1000000000000
 MIN_ITEM_PRICE = 1
+
+DEBUG_MODE = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
 
 # Application Setup
 app = Flask(__name__)
@@ -116,6 +120,51 @@ AUTOMOD_CONFIG = {
     "MIN_ACCOUNT_AGE": 3600,
     "SUBNET_BLOCKING": True,
 }
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    # Log the full exception details
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    stack_trace = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    
+    error_message = str(error) or "An unexpected error occurred"
+    app.logger.error(f"500 Internal Server Error: {error_message}\nStack Trace:\n{stack_trace}")
+
+    # Detailed response for debugging (only in DEBUG mode or if explicitly enabled)
+    if DEBUG_MODE:
+        response = {
+            "error": "Internal Server Error",
+            "code": "internal-server-error",
+            "message": error_message,
+            "details": {
+                "exception": str(exc_type.__name__),
+                "description": str(exc_value),
+                "stack_trace": stack_trace.splitlines(),
+                "request": {
+                    "method": request.method,
+                    "url": request.url,
+                    "headers": dict(request.headers),
+                    "body": request.get_data(as_text=True) if request.data else None,
+                    "remote_addr": request.remote_addr,
+                },
+            },
+            "timestamp": int(time.time()),
+        }
+    else:
+        # Minimal response for production
+        response = {
+            "error": "Internal Server Error",
+            "code": "internal-server-error",
+            "message": "Something went wrong on the server. Please try again later.",
+            "timestamp": int(time.time()),
+        }
+
+    return jsonify(response), 500
+
+@app.errorhandler(Exception)
+def handle_unhandled_exception(e):
+    # Redirect all unhandled exceptions to the 500 handler
+    return internal_server_error(e)
 
 
 # Load Word Lists
