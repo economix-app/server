@@ -2567,6 +2567,12 @@ def add_media_endpoint():
     Collections["users"].update_one(
         {"username": username}, {"$set": {"type": "media"}}
     )
+    
+    send_discord_notification(
+        "Media Added",
+        f"Admin {request.username} added {username} as media",
+        0x00FF00,
+    )
 
     return jsonify({"success": True})
   
@@ -2581,6 +2587,12 @@ def remove_media_endpoint():
 
     Collections["users"].update_one(
         {"username": username}, {"$set": {"type": "user"}}
+    )
+    
+    send_discord_notification(
+        "Media Removed",
+        f"Admin {request.username} removed {username} as media",
+        0x00FF00,
     )
 
     return jsonify({"success": True})
