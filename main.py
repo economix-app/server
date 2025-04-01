@@ -53,8 +53,10 @@ log_file = open("app.log", "r")
 log_file.seek(0, 2)  # Seek to the end of the file
 active_queues = set()  # Track active SSE connections
 
+
 class LogHandler(FileSystemEventHandler):
     """Handle log file events detected by watchdog."""
+
     def on_modified(self, event):
         """Read new lines when the log file is modified."""
         if event.src_path == "app.log":
@@ -73,9 +75,10 @@ class LogHandler(FileSystemEventHandler):
             log_file = open("app.log", "r")
             log_file.seek(0, 2)
 
+
 # Initialize and start the watchdog observer
 observer = Observer()
-observer.schedule(LogHandler(), path='.', recursive=False)
+observer.schedule(LogHandler(), path=".", recursive=False)
 observer.start()
 
 # Database Setup
@@ -413,7 +416,7 @@ def authenticate_user():
         "register_endpoint",
         "login_endpoint",
         "index",
-        "stats_endpoint"
+        "stats_endpoint",
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
         return
@@ -527,6 +530,7 @@ def update_pet(pet_id: str):
             {"id": pet_id}, {"$set": {"benefits": pet["benefits"]}}
         )
 
+
 def update_company(company_id: str):
     """Update company state, including token generation and distribution."""
     company = Collections["companies"].find_one({"id": company_id})
@@ -534,17 +538,20 @@ def update_company(company_id: str):
         return
 
     now = int(time.time())
-    hours_since_last = (now - company.get("last_distribution", company["created_at"])) // 3600
+    hours_since_last = (
+        now - company.get("last_distribution", company["created_at"])
+    ) // 3600
     if hours_since_last > 0:
         # Generate tokens: 5 tokens/hr per worker
         new_tokens = company["workers"] * 5 * hours_since_last
         Collections["companies"].update_one(
-            {"id": company_id},
-            {"$inc": {"tokens": new_tokens}}
+            {"id": company_id}, {"$inc": {"tokens": new_tokens}}
         )
 
     # Distribute tokens daily
-    days_since_last = (now - company.get("last_distribution", company["created_at"])) // 86400
+    days_since_last = (
+        now - company.get("last_distribution", company["created_at"])
+    ) // 86400
     if days_since_last >= 1:
         company = Collections["companies"].find_one({"id": company_id})  # Refresh data
         members = company["members"]
@@ -552,22 +559,22 @@ def update_company(company_id: str):
             tokens_per_member = company["tokens"] // len(members)
             for member in members:
                 Collections["users"].update_one(
-                    {"username": member},
-                    {"$inc": {"tokens": tokens_per_member}}
+                    {"username": member}, {"$inc": {"tokens": tokens_per_member}}
                 )
             Collections["companies"].update_one(
-                {"id": company_id},
-                {"$set": {"tokens": 0, "last_distribution": now}}
+                {"id": company_id}, {"$set": {"tokens": 0, "last_distribution": now}}
             )
             send_discord_notification(
                 "Company Distribution",
                 f"Company {company['name']} distributed {tokens_per_member} tokens to each of {len(members)} members.",
-                0x00FF00
+                0x00FF00,
             )
+
 
 def can_buy_worker(company):
     """Check if more workers can be bought."""
     return company["workers"] < 2 * len(company["members"])
+
 
 def level_up_pet(pet_id: str, exp_gain: int):
     pet = Collections["pets"].find_one({"id": pet_id})
@@ -1027,7 +1034,9 @@ def parse_command(username: str, command: str, room_name: str) -> str:
     elif cmd == "ban_ip" and len(args) >= 3 and is_admin:
         ip, duration, *reason = args
         ban_ip(ip, duration, " ".join(reason))
-        return f"Banned IP <b>{ip}</b> for <b>{' '.join(reason)}</b> (<b>{duration}</b>)"
+        return (
+            f"Banned IP <b>{ip}</b> for <b>{' '.join(reason)}</b> (<b>{duration}</b>)"
+        )
     elif cmd == "msg" and len(args) >= 2:
         recipient = args[0]
         message = " ".join(args[1:])
@@ -1440,30 +1449,30 @@ def delete_message(message_id: str) -> Tuple[dict, int]:
     )
     return jsonify({"success": True})
 
+
 def ban_ip(ip: str, length: str, reason: str, subnet: bool = False) -> Tuple[dict, int]:
     if not re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
         return jsonify({"error": "Invalid IP address", "code": "invalid-ip"}), 400
-    
+
     block_ip(ip, length, f"Admin ban: {reason}", subnet)
     return jsonify({"success": True})
+
 
 def unban_ip(ip: str) -> Tuple[dict, int]:
     if not re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
         return jsonify({"error": "Invalid IP address", "code": "invalid-ip"}), 400
-    
+
     Collections["blocked_ips"].delete_one({"ip": ip})
     send_discord_notification(
-        "IP Unbanned",
-        f"Admin {request.username} unbanned IP {ip}",
-        0xFFA500
+        "IP Unbanned", f"Admin {request.username} unbanned IP {ip}", 0xFFA500
     )
     return jsonify({"success": True})
+
 
 def get_banned_ips() -> Tuple[dict, int]:
     current_time = time.time()
     banned_ips = Collections["blocked_ips"].find(
-        {"blocked_until": {"$gte": current_time}},
-        {"_id": 0}
+        {"blocked_until": {"$gte": current_time}}, {"_id": 0}
     )
     return jsonify({"banned_ips": list(banned_ips)})
 
@@ -2046,10 +2055,10 @@ def send_message_endpoint():
 def get_messages_endpoint():
     room = request.args.get("room", "global")
     user = Collections["users"].find_one({"username": request.username})
-    
+
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-    
+
     if not room:
         return (
             jsonify({"error": "Missing room parameter", "code": "missing-parameters"}),
@@ -2059,12 +2068,20 @@ def get_messages_endpoint():
     if room == "logs" and user["type"] != "admin":
         return jsonify({"error": "You are not an admin", "code": "not-admin"}), 403
 
-    messages = Collections["messages"].find({"room": room}, {"_id": 0}).sort("timestamp", ASCENDING)
+    messages = (
+        Collections["messages"]
+        .find({"room": room}, {"_id": 0})
+        .sort("timestamp", ASCENDING)
+    )
     visible_messages = []
 
     for message in messages:
         visibility = message.get("visibility", ["public"])
-        if "public" in visibility or user["username"] in visibility or user["type"] == "admin":
+        if (
+            "public" in visibility
+            or user["username"] in visibility
+            or user["type"] == "admin"
+        ):
             visible_messages.append(message)
 
     return jsonify({"messages": visible_messages})
@@ -2249,6 +2266,7 @@ def coin_flip_endpoint():
         }
     )
 
+
 @app.route("/api/dice_roll", methods=["POST"])
 @requires_unbanned
 def dice_roll_endpoint():
@@ -2258,27 +2276,43 @@ def dice_roll_endpoint():
 
     # Validate input
     if not bet_amount or not choice:
-        return jsonify({"error": "Missing bet amount or choice", "code": "missing-parameters"}), 400
-    
+        return (
+            jsonify(
+                {"error": "Missing bet amount or choice", "code": "missing-parameters"}
+            ),
+            400,
+        )
+
     try:
         bet_amount = float(bet_amount)
         if bet_amount <= 0:
             raise ValueError
     except ValueError:
-        return jsonify({"error": "Invalid bet amount", "code": "invalid-bet-amount"}), 400
+        return (
+            jsonify({"error": "Invalid bet amount", "code": "invalid-bet-amount"}),
+            400,
+        )
 
     try:
         choice = int(choice)
         if choice < 1 or choice > 6:
             raise ValueError
     except ValueError:
-        return jsonify({"error": "Invalid choice, must be between 1 and 6", "code": "invalid-choice"}), 400
+        return (
+            jsonify(
+                {
+                    "error": "Invalid choice, must be between 1 and 6",
+                    "code": "invalid-choice",
+                }
+            ),
+            400,
+        )
 
     # Fetch user data
     user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-    
+
     if user["tokens"] < bet_amount:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
 
@@ -2291,12 +2325,11 @@ def dice_roll_endpoint():
         winnings = bet_amount * 5  # 5x payout
         Collections["users"].update_one(
             {"username": request.username},
-            {"$inc": {"tokens": winnings - bet_amount}}  # Net gain
+            {"$inc": {"tokens": winnings - bet_amount}},  # Net gain
         )
     else:
         Collections["users"].update_one(
-            {"username": request.username},
-            {"$inc": {"tokens": -bet_amount}}
+            {"username": request.username}, {"$inc": {"tokens": -bet_amount}}
         )
 
     # Log transaction
@@ -2310,19 +2343,27 @@ def dice_roll_endpoint():
                     "choice": choice,
                     "result": result,
                     "won": won,
-                    "timestamp": int(time.time())
+                    "timestamp": int(time.time()),
                 }
             }
-        }
+        },
     )
 
     send_discord_notification(
         "Dice Roll",
         f"User {request.username} bet {bet_amount} tokens on {choice}. Result: {result}. {'Won' if won else 'Lost'} {won and winnings or bet_amount} tokens.",
-        0x00FF00 if won else 0xFF0000
+        0x00FF00 if won else 0xFF0000,
     )
 
-    return jsonify({"success": True, "result": result, "won": won, "winnings": won and winnings or 0})
+    return jsonify(
+        {
+            "success": True,
+            "result": result,
+            "won": won,
+            "winnings": won and winnings or 0,
+        }
+    )
+
 
 @app.route("/api/create_company", methods=["POST"])
 @requires_unbanned
@@ -2331,7 +2372,7 @@ def create_company_endpoint():
     name = data.get("name")
     user = Collections["users"].find_one({"username": request.username})
 
-    if not name or not re.match(r"^[a-zA-Z0-9_- ]{3,20}$", name):
+    if not name or not re.match(r"^[a-zA-Z0-9_\s-]{3,20}$", name):
         return jsonify({"error": "Invalid company name"}), 400
     if user["tokens"] < 500:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
@@ -2346,19 +2387,17 @@ def create_company_endpoint():
         "workers": 0,
         "tokens": 0,
         "last_distribution": int(time.time()),
-        "created_at": int(time.time())
+        "created_at": int(time.time()),
     }
     Collections["companies"].insert_one(company)
     Collections["users"].update_one(
-        {"username": request.username},
-        {"$inc": {"tokens": -500}}
+        {"username": request.username}, {"$inc": {"tokens": -500}}
     )
     send_discord_notification(
-        "Company Created",
-        f"{request.username} created company {name}",
-        0x00FF00
+        "Company Created", f"{request.username} created company {name}", 0x00FF00
     )
     return jsonify({"success": True, "company": company})
+
 
 @app.route("/api/invite_to_company", methods=["POST"])
 @requires_unbanned
@@ -2367,7 +2406,9 @@ def invite_to_company_endpoint():
     company_id = data.get("company_id")
     invitee = data.get("username")
 
-    company = Collections["companies"].find_one({"id": company_id, "owner": request.username})
+    company = Collections["companies"].find_one(
+        {"id": company_id, "owner": request.username}
+    )
     if not company:
         return jsonify({"error": "Company not found or not owner"}), 404
     if len(company["members"]) >= 10:
@@ -2378,15 +2419,15 @@ def invite_to_company_endpoint():
         return jsonify({"error": "User already in company"}), 400
 
     Collections["companies"].update_one(
-        {"id": company_id},
-        {"$push": {"members": invitee}}
+        {"id": company_id}, {"$push": {"members": invitee}}
     )
     send_discord_notification(
         "Company Invite",
         f"{request.username} invited {invitee} to {company['name']}",
-        0xFFFF00
+        0xFFFF00,
     )
     return jsonify({"success": True})
+
 
 @app.route("/api/buy_worker", methods=["POST"])
 @requires_unbanned
@@ -2394,7 +2435,9 @@ def buy_worker_endpoint():
     data = request.get_json()
     company_id = data.get("company_id")
     user = Collections["users"].find_one({"username": request.username})
-    company = Collections["companies"].find_one({"id": company_id, "owner": request.username})
+    company = Collections["companies"].find_one(
+        {"id": company_id, "owner": request.username}
+    )
 
     if not company:
         return jsonify({"error": "Company not found or not owner"}), 404
@@ -2405,20 +2448,17 @@ def buy_worker_endpoint():
     if not can_buy_worker(company):
         return jsonify({"error": "Max workers reached"}), 400
 
-    Collections["companies"].update_one(
-        {"id": company_id},
-        {"$inc": {"workers": 1}}
-    )
+    Collections["companies"].update_one({"id": company_id}, {"$inc": {"workers": 1}})
     Collections["users"].update_one(
-        {"username": request.username},
-        {"$inc": {"tokens": -50}}
+        {"username": request.username}, {"$inc": {"tokens": -50}}
     )
     send_discord_notification(
         "Worker Purchased",
         f"{request.username} bought a worker for {company['name']}",
-        0x00FF00
+        0x00FF00,
     )
     return jsonify({"success": True})
+
 
 @app.route("/api/get_company", methods=["GET"])
 @requires_unbanned
@@ -2429,6 +2469,7 @@ def get_company_endpoint():
     update_company(company["id"])
     company = Collections["companies"].find_one({"id": company["id"]})
     return jsonify({"company": company})
+
 
 @app.route("/api/send_tokens", methods=["POST"])
 @requires_unbanned
@@ -2448,15 +2489,16 @@ def send_tokens_endpoint():
     if user["tokens"] < amount:
         return jsonify({"error": "Not enough Tokens", "code": "not-enough-tokens"})
 
-    Collections["users"].update_one({"username": request.username}, {"$inc": {
-        "tokens": -amount
-    }})
+    Collections["users"].update_one(
+        {"username": request.username}, {"$inc": {"tokens": -amount}}
+    )
 
-    Collections["users"].update_one({"username": recipient}, {"$inc": {
-        "tokens": amount
-    }})
+    Collections["users"].update_one(
+        {"username": recipient}, {"$inc": {"tokens": amount}}
+    )
 
     return jsonify({"success": True})
+
 
 @app.route("/api/reset_cooldowns", methods=["POST"])
 @requires_admin
@@ -2682,6 +2724,7 @@ def get_creator_codes_endpoint():
     codes = Collections["creator_codes"].find({}, {"_id": 0})
     return jsonify({"creator_codes": [code for code in codes]})
 
+
 @app.route("/api/ban_ip", methods=["POST"])
 @requires_admin
 def ban_ip_endpoint():
@@ -2690,8 +2733,9 @@ def ban_ip_endpoint():
         data.get("ip"),
         data.get("length"),
         data.get("reason"),
-        data.get("subnet", False)
+        data.get("subnet", False),
     )
+
 
 @app.route("/api/unban_ip", methods=["POST"])
 @requires_admin
@@ -2699,16 +2743,19 @@ def unban_ip_endpoint():
     data = request.get_json()
     return unban_ip(data.get("ip"))
 
+
 @app.route("/api/get_banned_ips", methods=["GET"])
 @requires_admin
 def get_banned_ips_endpoint():
     return get_banned_ips()
+
 
 @app.route("/api/logs", methods=["GET"])
 @requires_admin
 def stream_logs():
     q = queue.Queue()
     active_queues.add(q)
+
     def generate():
         try:
             while True:
@@ -2716,7 +2763,9 @@ def stream_logs():
                 yield f"data: {line}\n\n"
         finally:
             active_queues.remove(q)  # Clean up when client disconnects
+
     return Response(generate(), mimetype="text/event-stream")
+
 
 @app.route("/api/ping", methods=["GET"])
 def ping():
