@@ -2536,14 +2536,24 @@ def get_company_endpoint():
 @app.route("/api/leave_company", methods=["POST"])
 @requires_unbanned
 def leave_company_endpoint():
+    # Find the company where the user is a member
     company = Collections["companies"].find_one({"members": request.username})
     if not company:
-        return jsonify({"error": "You are not in a company", "code": "not-in-a-company"})
+        return jsonify({"error": "You are not in a company", "code": "not-in-a-company"}), 400
 
-    new_members = company["members"]
-    del new_members[new_members.index(request.username)]
-    Collections["companies"].find_one({"id": company["id"]}, {"$set": {"members": new_members}})
-    return jsonify({"success": True})
+    # Create new members list excluding the current user
+    new_members = [member for member in company["members"] if member != request.username]
+        
+    # Update the company document
+    result = Collections["companies"].update_one(
+        {"_id": company["_id"]},
+        {"$set": {"members": new_members}}
+    )
+
+    if result.modified_count == 0:
+        return jsonify({"error": "Failed to leave company", "code": "update-failed"}), 500
+
+    return jsonify({"success": True}), 200
 
 
 @app.route("/api/send_tokens", methods=["POST"])
