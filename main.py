@@ -951,7 +951,7 @@ def login(
     if recent_fails >= AUTOMOD_CONFIG["FAILED_LOGIN_THRESHOLD"]:
         block_ip(
             ip,
-            str(AUTOMOD_CONFIG["FAILED_LOGIN_WINDOW"] + "s"),
+            str(AUTOMOD_CONFIG["FAILED_LOGIN_WINDOW"]) + "s",
             "Too many failed logins",
             subnet=True,
         )
