@@ -2549,7 +2549,7 @@ def leave_company_endpoint():
 @app.route("/api/send_tokens", methods=["POST"])
 @requires_unbanned
 def send_tokens_endpoint():
-    data = request.get_data()
+    data = request.get_json()
     recipient = data["recipient"]
     amount = int(data["amount"])
 
