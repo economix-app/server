@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from hashlib import sha256
 from functools import wraps
 from pymongo import MongoClient, ASCENDING, DESCENDING
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 import re
 import html
 import pyotp
@@ -2560,27 +2560,40 @@ def leave_company_endpoint():
 @requires_unbanned
 def send_tokens_endpoint():
     data = request.get_json()
-    recipient = data["recipient"]
-    amount = int(data["amount"])
+    recipient = data.get("recipient")
+    amount = data.get("amount")
+
+    if not recipient or not amount:
+        return jsonify({"error": "Missing Parameters", "code": "missing-parameters"}), 400
+
+    try:
+        amount = int(amount)
+    except ValueError:
+        return jsonify({"error": "Invalid Amount", "code": "invalid-amount"}), 400
+
+    if amount <= 0:
+        return jsonify({"error": "Invalid Amount", "code": "invalid-amount"}), 400
 
     recipient_user = Collections["users"].find_one({"username": recipient})
     if not recipient_user:
-        return jsonify({"error": "Recipient not Found", "code": "user-not-found"})
+        return jsonify({"error": "Recipient not Found", "code": "user-not-found"}), 404
 
-    if amount <= 0:
-        return jsonify({"error": "Invalid Amount", "code": "invalid-amount"})
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not Found", "code": "user-not-found"}), 404
 
-    user = Collections["users"].find_one({"username", request.username})
     if user["tokens"] < amount:
-        return jsonify({"error": "Not enough Tokens", "code": "not-enough-tokens"})
+        return jsonify({"error": "Not enough Tokens", "code": "not-enough-tokens"}), 402
 
-    Collections["users"].update_one(
-        {"username": request.username}, {"$inc": {"tokens": -amount}}
-    )
-
-    Collections["users"].update_one(
-        {"username": recipient}, {"$inc": {"tokens": amount}}
-    )
+    try:
+        Collections["users"].update_one(
+            {"username": request.username}, {"$inc": {"tokens": -amount}}
+        )
+        Collections["users"].update_one(
+            {"username": recipient}, {"$inc": {"tokens": amount}}
+        )
+    except PyMongoError:
+        return jsonify({"error": "Internal Server Error", "code": "internal-error"}), 500
 
     send_discord_notification(
         "Tokens Sent", f"{request.username} sent {amount} tokens to {recipient}"
