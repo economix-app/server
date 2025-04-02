@@ -627,7 +627,7 @@ def update_company(company_id: str):
     workers_amount = company["workers"]
     if workers_amount > (len(company["members"] * 2)):
         excess_workers = workers_amount - (len(company["members"] * 2))
-        refund_amount - excess_workers * 50
+        refund_amount = excess_workers * 50
         Collections["companies"].update_one(
                 {"id": company_id}, {"$inc": {"tokens": refund_amount}, "$set": {"workers": (len(company["members"] * 2))}}
             )
