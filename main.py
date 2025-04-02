@@ -624,6 +624,14 @@ def update_company(company_id: str):
                 0x00FF00,
             )
 
+    workers_amount = company["workers"]
+    if workers_amount > (len(company["members"] * 2)):
+        excess_workers = workers_amount - (len(company["members"] * 2))
+        refund_amount - excess_workers * 50
+        Collections["companies"].update_one(
+                {"id": company_id}, {"$inc": {"tokens": refund_amount}, "$set": {"workers": (len(company["members"] * 2))}}
+            )
+
 
 def can_buy_worker(company):
     """Check if more workers can be bought."""
@@ -2524,6 +2532,18 @@ def get_company_endpoint():
     update_company(company["id"])
     company = Collections["companies"].find_one({"id": company["id"]}, {"_id": 0})
     return jsonify({"company": company})
+
+@app.route("/api/leave_company", methods=["POST"])
+@requires_unbanned
+def leave_company_endpoint():
+    company = Collections["companies"].find_one({"members": request.username})
+    if not company:
+        return jsonify({"error": "You are not in a company", "code": "not-in-a-company"})
+
+    new_members = company["members"]
+    del new_members[new_members.index(request.username)]
+    Collections["companies"].find_one({"id": company["id"]}, {"$set": {"members": new_members}})
+    return jsonify({"success": True})
 
 
 @app.route("/api/send_tokens", methods=["POST"])
