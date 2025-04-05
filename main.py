@@ -530,58 +530,71 @@ def update_item(item_id: str):
 def update_pet(pet_id: str):
     pet = Collections["pets"].find_one({"id": pet_id})
     if not pet:
-        return
+      return
 
     defaults = {
-        "alive": True,
-        "last_fed": int(time.time()),
-        "level": 1,
-        "exp": 0,
-        "benefits": {"token_bonus": 1},
-        "base_price": 100,
-        "hunger": 100,
-        "happiness": 100,
+      "alive": True,
+      "last_fed": int(time.time()),
+      "level": 1,
+      "exp": 0,
+      "benefits": {"token_bonus": 1},
+      "base_price": 100,
+      "hunger": 100,
+      "happiness": 100,
+      "last_play_time": int(time.time()),  # Initialize last_play_time
+      "last_update_time": int(time.time()),  # Track the last update time
     }
     updates = {}
     for key, value in defaults.items():
-        if key not in pet:
-            updates[key] = value
+      if key not in pet:
+        updates[key] = value
     if updates:
-        Collections["pets"].update_one({"id": pet_id}, {"$set": updates})
+      Collections["pets"].update_one({"id": pet_id}, {"$set": updates})
 
     pet = Collections["pets"].find_one({"id": pet_id})
 
     last_fed = pet["last_fed"]
+    last_play_time = pet.get("last_play_time", last_fed)
+    last_update_time = pet.get("last_update_time", last_fed)
     now = int(time.time())
 
-    # Health status and death check
-    if pet["alive"]:
-      seconds_unfed = now - last_fed  # Calculate seconds since last fed
-      last_play_time = pet.get("last_play_time", last_fed)  # Default to last fed time if not played
-      seconds_unplayed = now - last_play_time  # Calculate seconds since last played
+    # Only update hunger and happiness if enough time has passed
+    update_interval = 60 * 60  # 1 hour in seconds
+    if now - last_update_time >= update_interval:
+      # Health status and death check
+      if pet["alive"]:
+        seconds_unfed = now - last_fed
+        seconds_unplayed = now - last_play_time
 
-      new_hunger = max(0, pet["hunger"] - (seconds_unfed * (5 / 3600)))
-      new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (5 / 3600)))
+        new_hunger = max(0, pet["hunger"] - (seconds_unfed * (5 / 3600)))
+        new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (5 / 3600)))
 
-      if new_hunger <= 0 or new_happiness <= 0:
-        Collections["pets"].update_one(
-          {"id": pet_id}, {"$set": {"hunger": 0, "happiness": 0, "alive": False}}
-        )
-        send_discord_notification(
-          "Pet Died",
-          f"User {pet['owner']}'s pet {pet['name']} died due to neglect.",
-          0xFF0000,
-        )
-      else:
-        Collections["pets"].update_one(
-          {"id": pet_id}, {"$set": {"hunger": new_hunger, "happiness": new_happiness}}
-        )
+        if new_hunger <= 0 or new_happiness <= 0:
+          Collections["pets"].update_one(
+            {"id": pet_id}, {"$set": {"hunger": 0, "happiness": 0, "alive": False}}
+          )
+          send_discord_notification(
+            "Pet Died",
+            f"User {pet['owner']}'s pet {pet['name']} died due to neglect.",
+            0xFF0000,
+          )
+        else:
+          Collections["pets"].update_one(
+            {"id": pet_id},
+            {
+              "$set": {
+                "hunger": new_hunger,
+                "happiness": new_happiness,
+                "last_update_time": now,
+              }
+            },
+          )
 
-    # Update benefits based on level (only if alive)
-    if pet["alive"]:
+      # Update benefits based on level (only if alive)
+      if pet["alive"]:
         pet["benefits"]["token_bonus"] = pet["level"]  # +1 token per level
         Collections["pets"].update_one(
-            {"id": pet_id}, {"$set": {"benefits": pet["benefits"]}}
+          {"id": pet_id}, {"$set": {"benefits": pet["benefits"]}}
         )
 
 
