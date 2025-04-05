@@ -2972,6 +2972,21 @@ def set_company_tokens_endpoint():
 def get_logs():
     with open("app.log", "r") as f:
         return f.read()
+      
+@app.route("/api/restore_pet", methods=["POST"])
+@requires_admin
+def restore_pet_endpoint():
+    data = request.get_json()
+    pet_id = data.get("pet_id")
+
+    pet = Collections["pets"].find_one({"id": pet_id})
+    if not pet:
+      return jsonify({"error": "Pet not found", "code": "pet-not-found"}), 404
+
+    Collections["pets"].update_one(
+      {"id": pet_id},
+      {"$set": {"alive": True, "happiness": 100, "hunger": 100}}
+    )
 
 
 @app.route("/api/ping", methods=["GET"])
