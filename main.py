@@ -538,8 +538,9 @@ def update_pet(pet_id: str):
         "level": 1,
         "exp": 0,
         "benefits": {"token_bonus": 1},
-        "health": "healthy",
         "base_price": 100,
+        "hunger": 100,
+        "happiness": 100,
     }
     updates = {}
     for key, value in defaults.items():
@@ -555,21 +556,23 @@ def update_pet(pet_id: str):
     days_unfed = (now - last_fed) // (24 * 3600)  # Convert seconds to days
 
     # Health status and death check
-    if days_unfed >= 3 and pet["alive"]:
+    if pet["alive"]:
+      new_hunger = max(0, pet["hunger"] - (days_unfed * 35))
+      new_happiness = max(0, pet["happiness"] - (days_unfed * 35))
+
+      if new_hunger == 0 or new_happiness == 0:
         Collections["pets"].update_one(
-            {"id": pet_id}, {"$set": {"health": "dead", "alive": False}}
+          {"id": pet_id}, {"$set": {"hunger": 0, "happiness": 0, "alive": False}}
         )
         send_discord_notification(
-            "Pet Died",
-            f"User {pet['owner']}'s pet {pet['name']} died due to neglect.",
-            0xFF0000,
+          "Pet Died",
+          f"User {pet['owner']}'s pet {pet['name']} died due to neglect.",
+          0xFF0000,
         )
-    elif days_unfed == 2 and pet["alive"]:
-        Collections["pets"].update_one({"id": pet_id}, {"$set": {"health": "starving"}})
-    elif days_unfed == 1 and pet["alive"]:
-        Collections["pets"].update_one({"id": pet_id}, {"$set": {"health": "hungry"}})
-    else:
-        Collections["pets"].update_one({"id": pet_id}, {"$set": {"health": "healthy"}})
+      else:
+        Collections["pets"].update_one(
+          {"id": pet_id}, {"$set": {"hunger": new_hunger, "happiness": new_happiness}}
+        )
 
     # Update benefits based on level (only if alive)
     if pet["alive"]:
@@ -789,10 +792,11 @@ def generate_pet(owner: str, base_price: int = 100) -> dict:
         "owner": owner,
         "created_at": int(time.time()),
         "last_fed": int(time.time()),
-        "health": "healthy",
         "benefits": {"token_bonus": 1},
         "alive": True,
         "base_price": base_price,
+        "hunger": 0,
+        "happiness": 100,
     }
 
 
@@ -1811,10 +1815,61 @@ def feed_pet_endpoint():
     Collections["users"].update_one(
         {"username": request.username}, {"$inc": {"tokens": -10}}
     )
+    Collections["pets"].update_one(
+      {"id": pet_id},
+      {
+        "$inc": {
+          "happiness": min(10, 100 - pet["happiness"]),
+          "hunger": min(10, 100 - pet["hunger"])
+        }
+      }
+    )
     level_up_pet(pet_id, 3)  # Gain 3 exp per feeding
     update_pet(pet_id)
     send_discord_notification(
         "Pet Fed", f"User {request.username} fed pet: {pet['name']}"
+    )
+    return jsonify({"success": True})
+  
+@app.route("/api/play_with_pet", methods=["POST"])
+@requires_unbanned
+def play_with_pet_endpoint():
+    data = request.get_json()
+    pet_id = data.get("pet_id")
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+    pet = Collections["pets"].find_one({"id": pet_id})
+    if not pet or not pet["alive"]:
+      return jsonify({"error": "Pet not found or dead", "code": "pet-not-found"}), 404
+
+    now = time.time()
+    last_play_time = pet.get("last_play_time", 0)
+    cooldown = 300  # 5 minutes in seconds
+
+    if now - last_play_time < cooldown:
+      return jsonify({
+        "error": "Cooldown active",
+        "remaining": cooldown - (now - last_play_time),
+        "code": "cooldown-active"
+      }), 429
+
+    Collections["pets"].update_one(
+      {"id": pet_id},
+      {
+        "$inc": {
+          "happiness": min(10, 100 - pet["happiness"])
+        },
+        "$set": {"last_play_time": now}
+      }
+    )
+    Collections["users"].update_one(
+      {"username": request.username}, {"$inc": {"exp": 5}}
+    )
+    update_account(request.username)
+    update_pet(pet_id)
+    send_discord_notification(
+      "Pet Played With", f"User {request.username} played with pet: {pet['name']}"
     )
     return jsonify({"success": True})
 
