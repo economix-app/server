@@ -1791,7 +1791,7 @@ def buy_pet_endpoint():
             Collections["users"].update_one(
                 {"username": request.username}, {"$pull": {"pets": current_pet["id"]}}
             )
-            price = current_pet["base_price"] * 2  # Double price for repurchase
+            price = 200  # Double price for repurchase
     else:
         price = 100  # Initial price
 
