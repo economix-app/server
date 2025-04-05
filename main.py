@@ -2470,6 +2470,7 @@ def create_company_endpoint():
         "workers": 0,
         "tasks": [],
         "created_at": int(time.time()),
+        "format": "v2",
     }
     Collections["companies"].insert_one(company)
     Collections["users"].update_one(
