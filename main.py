@@ -2851,3 +2851,31 @@ def get_typing_users_endpoint():
     typing_data = Collections["messages"].find_one({"room": room, "type": "typing"}, {"_id": 0, "typing_users": 1})
     typing_users = typing_data.get("typing_users", []) if typing_data else []
     return jsonify({"typing_users": typing_users})
+
+
+@app.route("/api/daily_free_spin", methods=["POST"])
+@requires_unbanned
+def daily_free_spin_endpoint():
+    user = Collections["users"].find_one({"username": request.username})
+    last_spin = user.get("last_free_spin", 0)
+    now = int(time.time())
+
+    if now - last_spin < 86400:  # 24 hours
+        return jsonify({"error": "Daily free spin already claimed"}), 429
+
+    reward = random.choice(["tokens", "item"])
+    if reward == "tokens":
+        amount = random.randint(10, 50)
+        Collections["users"].update_one(
+            {"username": request.username},
+            {"$inc": {"tokens": amount}, "$set": {"last_free_spin": now}},
+        )
+        return jsonify({"success": True, "reward": f"{amount} tokens"})
+    else:
+        item = generate_item(request.username)
+        Collections["items"].insert_one(item)
+        Collections["users"].update_one(
+            {"username": request.username},
+            {"$push": {"items": item["id"]}, "$set": {"last_free_spin": now}},
+        )
+        return jsonify({"success": True, "reward": "1 item"})
