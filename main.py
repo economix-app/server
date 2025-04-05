@@ -2482,7 +2482,7 @@ def create_company_endpoint():
         f"{request.username} created a {company_type} named {name}",
         0x00FF00,
     )
-    return jsonify({"success": True, "company": company})
+    return jsonify({"success": True, "company": {k: v for k, v in company.items() if k != "_id"}})
 
 # Hire a worker for the company
 @app.route("/api/hire_worker", methods=["POST"])
@@ -2536,7 +2536,7 @@ def assign_task_endpoint():
     Collections["companies"].update_one(
         {"id": company_id}, {"$push": {"tasks": task}}
     )
-    return jsonify({"success": True, "task": task})
+    return jsonify({"success": True, "task": {k: v for k, v in task.items() if k != "_id"}})
 
 # Complete a task
 @app.route("/api/complete_task", methods=["POST"])
@@ -2578,7 +2578,7 @@ def get_company_endpoint():
     company = Collections["companies"].find_one({"owner": request.username})
     if not company:
         return jsonify({"company": None})
-    return jsonify({"company": company})
+    return jsonify({"company": {k: v for k, v in company.items() if k != "_id"}})
 
 # Remove all old companies and refund owners
 def reset_companies():
