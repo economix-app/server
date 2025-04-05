@@ -553,7 +553,6 @@ def update_pet(pet_id: str):
 
     last_fed = pet["last_fed"]
     now = int(time.time())
-    days_unfed = (now - last_fed) // (24 * 3600)  # Convert seconds to days
 
     # Health status and death check
     if pet["alive"]:
@@ -1796,7 +1795,7 @@ def buy_pet_endpoint():
         "New Pet Bought",
         f"User {request.username} bought pet: {pet['name']} for {price} tokens",
     )
-    return jsonify(pet)
+    return jsonify({"success": True, "pet": {k: v for k, v in pet.items() if k not in ["_id"]}})
 
 
 @app.route("/api/feed_pet", methods=["POST"])
