@@ -2904,10 +2904,29 @@ def create_auction():
     Collections["auctions"].insert_one({
         "itemId": item_id,
         "itemName": item["name"],
+        "itemRarity": {
+          "level": item["level"],
+          "rarity": item["rarity"]
+        },
         "currentBid": starting_bid,
         "owner": request.username,
         "bids": []
     })
+    return jsonify({"success": True})
+  
+@app.route("/api/close_auction", methods=["POST"])
+@requires_unbanned
+def close_auction():
+    data = request.get_json()
+    item_id = data.get("itemId")
+    auction = Collections["auctions"].find_one({"itemId": item_id})
+    if not auction:
+        return jsonify({"error": "Auction not found"}), 404
+    if auction["owner"] != request.username:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # Remove the auction
+    Collections["auctions"].delete_one({"itemId": item_id})
     return jsonify({"success": True})
 
 @app.route("/api/place_bid", methods=["POST"])
