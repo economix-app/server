@@ -9,7 +9,7 @@ from typing import Dict, Optional, Tuple
 import traceback
 import sys
 
-from flask import Flask, request, jsonify, send_file, redirect, Response
+from flask import Flask, request, jsonify, send_file, redirect
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from hashlib import sha256
@@ -26,7 +26,6 @@ import requests
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import queue
 
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
