@@ -2913,21 +2913,6 @@ def create_auction():
         "bids": []
     })
     return jsonify({"success": True})
-  
-@app.route("/api/close_auction", methods=["POST"])
-@requires_unbanned
-def close_auction():
-    data = request.get_json()
-    item_id = data.get("itemId")
-    auction = Collections["auctions"].find_one({"itemId": item_id})
-    if not auction:
-        return jsonify({"error": "Auction not found"}), 404
-    if auction["owner"] != request.username:
-        return jsonify({"error": "Unauthorized"}), 403
-
-    # Remove the auction
-    Collections["auctions"].delete_one({"itemId": item_id})
-    return jsonify({"success": True})
 
 @app.route("/api/place_bid", methods=["POST"])
 @requires_unbanned
@@ -2966,3 +2951,68 @@ def place_bid():
     )
 
     return jsonify({"success": True})
+
+@app.route("/api/stop_auction", methods=["POST"])
+@requires_unbanned
+def stop_auction():
+    data = request.get_json()
+    item_id = data.get("itemId")
+
+    auction = Collections["auctions"].find_one({"itemId": item_id})
+    if not auction:
+        return jsonify({"error": "Auction not found"}), 404
+    if auction["owner"] != request.username:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # Check if there is a valid bid
+    if "currentBidder" not in auction or auction["currentBid"] <= 0:
+        # No valid bids, return the item to the owner
+        Collections["auctions"].delete_one({"itemId": item_id})
+        return jsonify({"success": True, "message": "Auction stopped. No bids placed."})
+
+    # Transfer the item to the highest bidder
+    highest_bidder = auction["currentBidder"]
+    bid_amount = auction["currentBid"]
+    owner = auction["owner"]
+
+    with client.start_session() as session:
+        with session.start_transaction():
+            # Deduct the item from the owner's inventory
+            Collections["users"].update_one(
+                {"username": owner},
+                {"$pull": {"items": item_id}},
+                session=session
+            )
+
+            # Add the item to the highest bidder's inventory
+            Collections["users"].update_one(
+                {"username": highest_bidder},
+                {"$push": {"items": item_id}},
+                session=session
+            )
+
+            # Update the item's owner
+            Collections["items"].update_one(
+                {"id": item_id},
+                {"$set": {"owner": highest_bidder, "for_sale": False, "price": 0}},
+                session=session
+            )
+
+            # Transfer the bid amount to the auction owner
+            Collections["users"].update_one(
+                {"username": owner},
+                {"$inc": {"tokens": bid_amount}},
+                session=session
+            )
+
+    # Remove the auction
+    Collections["auctions"].delete_one({"itemId": item_id})
+
+    # Notify via Discord
+    send_discord_notification(
+        "Auction Stopped",
+        f"Auction for item {item_id} has ended. {highest_bidder} won the auction with a bid of {bid_amount} tokens. {owner} received the tokens.",
+        0x00FF00
+    )
+
+    return jsonify({"success": True, "message": f"Auction stopped. {highest_bidder} won the item."})
