@@ -3080,3 +3080,21 @@ def get_typing_users_endpoint():
     typing_data = Collections["messages"].find_one({"room": room, "type": "typing"}, {"_id": 0, "typing_users": 1})
     typing_users = typing_data.get("typing_users", []) if typing_data else []
     return jsonify({"typing_users": typing_users})
+
+@app.route("/api/delete_company", methods=["POST"])
+@requires_admin
+def delete_company_endpoint():
+    data = request.get_json()
+    company_id = data.get("company_id")
+
+    company = Collections["companies"].find_one({"id": company_id})
+    if not company:
+        return jsonify({"error": "Company not found", "code": "company-not-found"}), 404
+
+    Collections["companies"].delete_one({"id": company_id})
+    send_discord_notification(
+        "Company Deleted",
+        f"Admin {request.username} deleted company {company['name']}",
+        0xFF0000,
+    )
+    return jsonify({"success": True})
