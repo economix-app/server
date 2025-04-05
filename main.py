@@ -8,8 +8,12 @@ from threading import Thread
 from typing import Dict, Optional, Tuple
 import traceback
 import sys
+import yfinance as yf
+from bs4 import BeautifulSoup
+import requests
+from apscheduler.schedulers.background import BackgroundScheduler
 
-from flask import Flask, request, jsonify, send_file, redirect, Response
+from flask import Flask, request, jsonify, send_file, redirect
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from hashlib import sha256
@@ -26,11 +30,11 @@ import requests
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import queue
 
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
 TOKEN_MINE_COOLDOWN = 180  # 3 minutes
+TRADE_COOLDOWN = 60  # 1 minute
 MAX_ITEM_PRICE = 1000000000000
 MIN_ITEM_PRICE = 1
 
@@ -102,6 +106,8 @@ Collections = {
     "user_history": db.user_history,
     "creator_codes": db.creator_codes,
     "companies": db.companies,
+    "stocks": db.stocks,
+    "user_portfolios": db.user_portfolios
 }
 
 # AutoMod Configuration
@@ -224,6 +230,8 @@ def create_indexes():
     Collections["user_history"].create_index([("code", ASCENDING)])
     Collections["companies"].create_index([("name", ASCENDING)], unique=True)
     Collections["companies"].create_index([("owner", ASCENDING)])
+    Collections["stocks"].create_index([("symbol", ASCENDING)], unique=True)
+    Collections["user_portfolios"].create_index([("user", ASCENDING), ("symbol", ASCENDING)], unique=True)
 
 
 create_indexes()
@@ -489,6 +497,54 @@ def authenticate_user():
 
     request.username = user["username"]
     request.user_type = user.get("type", "user")
+    
+# Stock Market Scheduler
+def update_stock_prices():
+    try:
+        symbols = [doc["symbol"] for doc in Collections["stocks"].find({}, {"symbol": 1})]
+        if not symbols:
+            return
+
+        data = yf.download(
+            tickers=" ".join(symbols),
+            period="1d",
+            group_by="ticker",
+            progress=False
+        )
+        
+        for symbol in symbols:
+            try:
+                if symbol in data:
+                    price = data[symbol]['Close'].iloc[-1]
+                    Collections["stocks"].update_one(
+                        {"symbol": symbol},
+                        {
+                            "$set": {"current_price": float(price), "last_updated": time.time()},
+                            "$push": {"historical_prices": {"timestamp": time.time(), "price": float(price)}}
+                        },
+                        upsert=True
+                    )
+            except Exception as e:
+                app.logger.error(f"Error updating {symbol}: {str(e)}")
+    except Exception as e:
+        app.logger.error(f"Stock update failed: {str(e)}")
+
+if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(update_stock_prices, 'interval', minutes=15)
+    scheduler.start()
+    
+# Stock Market Helper Functions
+def get_company_name(symbol):
+    try:
+        url = f"https://finance.yahoo.com/quote/{symbol}"
+        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
+        soup = BeautifulSoup(response.text, 'html.parser')
+        name = soup.find('h1').text.split('(')[0].strip()
+        return name if name else symbol
+    except Exception as e:
+        app.logger.error(f"Failed to get name for {symbol}: {str(e)}")
+        return symbol
 
 
 # Database Updaters
@@ -2919,3 +2975,144 @@ def get_logs():
 @app.route("/api/ping", methods=["GET"])
 def ping():
     return "200 OK"
+
+@app.route('/api/stocks', methods=['GET'])
+@requires_unbanned
+def get_all_stocks():
+    stocks = list(Collections["stocks"].find({}, {"_id": 0}))
+    return jsonify({"stocks": stocks})
+
+@app.route('/api/stocks/<symbol>', methods=['GET'])
+@requires_unbanned
+def get_stock(symbol):
+    stock = Collections["stocks"].find_one({"symbol": symbol.upper()}, {"_id": 0})
+    if not stock:
+        return jsonify({"error": "Stock not found"}), 404
+    return jsonify(stock)
+
+@app.route('/api/stocks/search', methods=['GET'])
+@requires_unbanned
+def search_stock():
+    symbol = request.args.get('symbol', '').upper()
+    try:
+        price = yf.Ticker(symbol).history(period='1d')['Close'].iloc[-1]
+        return jsonify({
+            "symbol": symbol,
+            "name": get_company_name(symbol),
+            "current_price": float(price)
+        })
+    except Exception as e:
+        return jsonify({"error": "Invalid stock symbol"}), 400
+
+@app.route('/api/stocks/buy', methods=['POST'])
+@requires_unbanned
+def buy_stock():
+    data = request.get_json()
+    symbol = data.get('symbol', '').upper()
+    shares = int(data.get('shares', 1))
+    
+    if shares <= 0:
+        return jsonify({"error": "Invalid share amount"}), 400
+
+    user = Collections["users"].find_one({"username": request.username})
+    if time.time() - user.get("last_trade_time", 0) < TRADE_COOLDOWN:
+        return jsonify({"error": "Trade cooldown active"}), 429
+
+    try:
+        ticker = yf.Ticker(symbol)
+        price = ticker.history(period='1d')['Close'].iloc[-1]
+    except:
+        return jsonify({"error": "Invalid stock symbol"}), 400
+
+    total_cost = price * shares
+    if user["tokens"] < total_cost:
+        return jsonify({"error": "Insufficient tokens"}), 402
+
+    # Update portfolio
+    try:
+        Collections["user_portfolios"].update_one(
+            {"user": request.username, "symbol": symbol},
+            {
+                "$inc": {"shares": shares},
+                "$setOnInsert": {
+                    "average_price": price,
+                    "symbol": symbol,
+                    "name": get_company_name(symbol)
+                }
+            },
+            upsert=True
+        )
+    except PyMongoError as e:
+        return jsonify({"error": "Database error"}), 500
+
+    # Deduct tokens
+    Collections["users"].update_one(
+        {"username": request.username},
+        {"$inc": {"tokens": -total_cost}, "$set": {"last_trade_time": time.time()}}
+    )
+
+    # Add to stock tracking if new
+    Collections["stocks"].update_one(
+        {"symbol": symbol},
+        {
+            "$setOnInsert": {
+                "symbol": symbol,
+                "name": get_company_name(symbol),
+                "current_price": price,
+                "historical_prices": [{"timestamp": time.time(), "price": price}]
+            }
+        },
+        upsert=True
+    )
+
+    return jsonify({"success": True, "total_cost": total_cost})
+
+@app.route('/api/stocks/sell', methods=['POST'])
+@requires_unbanned
+def sell_stock():
+    data = request.get_json()
+    symbol = data.get('symbol', '').upper()
+    shares = int(data.get('shares', 1))
+
+    if shares <= 0:
+        return jsonify({"error": "Invalid share amount"}), 400
+
+    portfolio = Collections["user_portfolios"].find_one(
+        {"user": request.username, "symbol": symbol}
+    )
+    if not portfolio or portfolio["shares"] < shares:
+        return jsonify({"error": "Insufficient shares"}), 400
+
+    try:
+        price = yf.Ticker(symbol).history(period='1d')['Close'].iloc[-1]
+    except:
+        return jsonify({"error": "Invalid stock symbol"}), 400
+
+    total_sale = price * shares
+
+    # Update portfolio
+    new_shares = portfolio["shares"] - shares
+    if new_shares <= 0:
+        Collections["user_portfolios"].delete_one({"_id": portfolio["_id"]})
+    else:
+        Collections["user_portfolios"].update_one(
+            {"_id": portfolio["_id"]},
+            {"$set": {"shares": new_shares}}
+        )
+
+    # Add tokens
+    Collections["users"].update_one(
+        {"username": request.username},
+        {"$inc": {"tokens": total_sale}, "$set": {"last_trade_time": time.time()}}
+    )
+
+    return jsonify({"success": True, "total_sale": total_sale})
+
+@app.route('/api/portfolio', methods=['GET'])
+@requires_unbanned
+def get_portfolio():
+    portfolio = list(Collections["user_portfolios"].find(
+        {"user": request.username},
+        {"_id": 0, "user": 0}
+    ))
+    return jsonify({"portfolio": portfolio})

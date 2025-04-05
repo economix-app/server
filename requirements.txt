@@ -9,3 +9,6 @@ pillow
 better_profanity
 requests
 watchdog
+yfinance
+apscheduler
+beautifulsoup4
