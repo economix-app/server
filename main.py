@@ -557,14 +557,14 @@ def update_pet(pet_id: str):
 
     # Health status and death check
     if pet["alive"]:
-      hours_unfed = (now - last_fed) // 3600  # Convert seconds to hours
+      seconds_unfed = now - last_fed  # Calculate seconds since last fed
       last_play_time = pet.get("last_play_time", last_fed)  # Default to last fed time if not played
-      hours_unplayed = (now - last_play_time) // 3600  # Convert seconds to hours
+      seconds_unplayed = now - last_play_time  # Calculate seconds since last played
 
-      new_hunger = max(0, pet["hunger"] - (hours_unfed * 5))
-      new_happiness = max(0, pet["happiness"] - (hours_unplayed * 5))
+      new_hunger = max(0, pet["hunger"] - (seconds_unfed * (5 / 3600)))
+      new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (5 / 3600)))
 
-      if new_hunger == 0 or new_happiness == 0:
+      if new_hunger <= 0 or new_happiness <= 0:
         Collections["pets"].update_one(
           {"id": pet_id}, {"$set": {"hunger": 0, "happiness": 0, "alive": False}}
         )
