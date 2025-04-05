@@ -598,15 +598,6 @@ def update_pet(pet_id: str):
         )
 
 
-def update_company(company_id: str):
-    pass
-
-
-def can_buy_worker(company):
-    """Check if more workers can be bought."""
-    return company["workers"] < 2 * len(company["members"])
-
-
 def level_up_pet(pet_id: str, exp_gain: int):
     pet = Collections["pets"].find_one({"id": pet_id})
     if not pet or not pet["alive"]:
@@ -2457,35 +2448,6 @@ def remove_companies():
         )
     Collections["companies"].delete_many({})
 
-# Remove company-related routes
-@app.route("/api/create_company", methods=["POST"])
-def create_company_endpoint():
-    return jsonify({"error": "Company feature has been removed"}), 410
-
-@app.route("/api/hire_worker", methods=["POST"])
-def hire_worker_endpoint():
-    return jsonify({"error": "Company feature has been removed"}), 410
-
-@app.route("/api/assign_task", methods=["POST"])
-def assign_task_endpoint():
-    return jsonify({"error": "Company feature has been removed"}), 410
-
-@app.route("/api/complete_task", methods=["POST"])
-def complete_task_endpoint():
-    return jsonify({"error": "Company feature has been removed"}), 410
-
-@app.route("/api/sell_product", methods=["POST"])
-def sell_product_endpoint():
-    return jsonify({"error": "Company feature has been removed"}), 410
-
-@app.route("/api/get_company", methods=["GET"])
-def get_company_endpoint():
-    return jsonify({"error": "Company feature has been removed"}), 410
-
-@app.route("/api/delete_company", methods=["POST"])
-def delete_company_endpoint():
-    return jsonify({"error": "Company feature has been removed"}), 410
-
 
 @app.route("/api/send_tokens", methods=["POST"])
 @requires_unbanned
@@ -2821,23 +2783,6 @@ def unban_ip_endpoint():
 @requires_admin
 def get_banned_ips_endpoint():
     return get_banned_ips()
-
-
-@app.route("/api/set_company_tokens", methods=["POST"])
-@requires_admin
-def set_company_tokens_endpoint():
-    data = request.get_json()
-    company = data.get("company")
-    tokens = data.get("tokens")
-
-    if not Collections["companies"].find_one({"name": company}):
-        return jsonify({"error": "Company not found"}), 404
-
-    Collections["companies"].update_one({"name": company}, {"$set": {"tokens": int(tokens)}})
-    
-    send_discord_notification("Company Tokens Edited", f"Admin {request.username} set {company}'s tokens to {tokens}")
-    
-    return jsonify({"success": True})
 
 
 @app.route("/api/logs", methods=["GET"])
