@@ -2987,6 +2987,8 @@ def restore_pet_endpoint():
       {"id": pet_id},
       {"$set": {"alive": True, "happiness": 100, "hunger": 100}}
     )
+    
+    return jsonify({"success": True})
 
 
 @app.route("/api/ping", methods=["GET"])
