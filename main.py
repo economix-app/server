@@ -101,6 +101,8 @@ Collections = {
     "user_history": db.user_history,
     "creator_codes": db.creator_codes,
     "companies": db.companies,
+    "auctions": db.auctions,
+    "trades": db.trades,
 }
 
 # AutoMod Configuration
@@ -223,6 +225,9 @@ def create_indexes():
     Collections["user_history"].create_index([("code", ASCENDING)])
     Collections["companies"].create_index([("name", ASCENDING)], unique=True)
     Collections["companies"].create_index([("owner", ASCENDING)])
+    Collections["auctions"].create_index([("item_id", ASCENDING)])
+    Collections["auctions"].create_index([("owner", ASCENDING)])
+    Collections["trades"].create_index([("offerOwner", ASCENDING), ("requestOwner", ASCENDING)])
 
 
 create_indexes()
@@ -2879,3 +2884,66 @@ def daily_free_spin_endpoint():
             {"$push": {"items": item["id"]}, "$set": {"last_free_spin": now}},
         )
         return jsonify({"success": True, "reward": "1 item"})
+
+
+@app.route("/api/auctions", methods=["GET"])
+@requires_unbanned
+def get_auctions():
+    auctions = list(Collections["auctions"].find({}, {"_id": 0}))
+    return jsonify({"auctions": auctions})
+
+@app.route("/api/create_auction", methods=["POST"])
+@requires_unbanned
+def create_auction():
+    data = request.get_json()
+    item_id = data.get("itemId")
+    starting_bid = float(data.get("startingBid"))
+    item = Collections["items"].find_one({"id": item_id, "owner": request.username})
+    if not item:
+        return jsonify({"error": "Item not found or unauthorized"}), 404
+    Collections["auctions"].insert_one({
+        "itemId": item_id,
+        "itemName": item["name"],
+        "currentBid": starting_bid,
+        "owner": request.username,
+        "bids": []
+    })
+    return jsonify({"success": True})
+
+@app.route("/api/place_bid", methods=["POST"])
+@requires_unbanned
+def place_bid():
+    data = request.get_json()
+    item_id = data.get("itemId")
+    bid_amount = float(data.get("bidAmount"))
+
+    auction = Collections["auctions"].find_one({"itemId": item_id})
+    if not auction:
+        return jsonify({"error": "Auction not found"}), 404
+    if bid_amount <= auction["currentBid"]:
+        return jsonify({"error": "Bid must be higher than the current bid"}), 400
+
+    user = Collections["users"].find_one({"username": request.username})
+    if user["tokens"] < bid_amount:
+        return jsonify({"error": "Not enough tokens"}), 402
+
+    # Refund previous bidder
+    if "currentBidder" in auction:
+        Collections["users"].update_one(
+            {"username": auction["currentBidder"]},
+            {"$inc": {"tokens": auction["currentBid"]}}
+        )
+
+    # Deduct tokens from the new bidder
+    Collections["users"].update_one(
+        {"username": request.username},
+        {"$inc": {"tokens": -bid_amount}}
+    )
+
+    # Update auction
+    Collections["auctions"].update_one(
+        {"itemId": item_id},
+        {"$set": {"currentBid": bid_amount, "currentBidder": request.username}}
+    )
+
+    return jsonify({"success": True})
