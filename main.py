@@ -1768,11 +1768,11 @@ def buy_pet_endpoint():
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
-    pet_limit = 1
+    pet_limit = 2
     if has_pro(request.username):
-        pet_limit = 3
+        pet_limit = 4
     if has_proplus(request.username):
-        pet_limit = 5
+        pet_limit = 8
 
     if len(user.get("pets", [])) >= pet_limit:
         for pet_id in user["pets"]:
