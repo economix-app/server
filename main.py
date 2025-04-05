@@ -3006,3 +3006,42 @@ def restore_pet_endpoint():
 @app.route("/api/ping", methods=["GET"])
 def ping():
     return "200 OK"
+
+@app.route("/api/start_typing", methods=["POST"])
+@requires_unbanned
+def start_typing_endpoint():
+    data = request.get_json()
+    room = data.get("room", "global")
+    if not room:
+        return jsonify({"error": "Missing room parameter", "code": "missing-parameters"}), 400
+
+    Collections["messages"].update_one(
+        {"room": room, "type": "typing"},
+        {"$addToSet": {"typing_users": request.username}},
+        upsert=True
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/stop_typing", methods=["POST"])
+@requires_unbanned
+def stop_typing_endpoint():
+    data = request.get_json()
+    room = data.get("room", "global")
+    if not room:
+        return jsonify({"error": "Missing room parameter", "code": "missing-parameters"}), 400
+
+    Collections["messages"].update_one(
+        {"room": room, "type": "typing"},
+        {"$pull": {"typing_users": request.username}}
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/get_typing_users", methods=["GET"])
+@requires_unbanned
+def get_typing_users_endpoint():
+    room = request.args.get("room", "global")
+    typing_data = Collections["messages"].find_one({"room": room, "type": "typing"}, {"_id": 0, "typing_users": 1})
+    typing_users = typing_data.get("typing_users", []) if typing_data else []
+    return jsonify({"typing_users": typing_users})
