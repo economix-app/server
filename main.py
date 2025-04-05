@@ -692,7 +692,7 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
     for pet_id in user["pets"]:
         update_pet(pet_id)
 
-    reset_companies()
+    remove_companies()
 
 
 # Item and Pet Generation
@@ -2446,219 +2446,45 @@ def dice_roll_endpoint():
     )
 
 
-@app.route("/api/create_company", methods=["POST"])
-@requires_unbanned
-def create_company_endpoint():
-    data = request.get_json()
-    name = data.get("name")
-    company_type = data.get("type")
-
-    if not name or not re.match(r"^[a-zA-Z0-9_\s-]{3,20}$", name):
-        return jsonify({"error": "Invalid company name"}), 400
-    if company_type not in COMPANY_TYPES:
-        return jsonify({"error": "Invalid company type"}), 400
-
-    user = Collections["users"].find_one({"username": request.username})
-    if user["tokens"] < COMPANY_TYPES[company_type]["base_cost"]:
-        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
-
-    company = {
-        "id": str(uuid4()),
-        "name": name,
-        "type": company_type,
-        "owner": request.username,
-        "workers": 0,
-        "tasks": [],
-        "created_at": int(time.time()),
-        "format": "v2",
-    }
-    Collections["companies"].insert_one(company)
-    Collections["users"].update_one(
-        {"username": request.username},
-        {"$inc": {"tokens": -COMPANY_TYPES[company_type]["base_cost"]}},
-    )
-    send_discord_notification(
-        "Company Created",
-        f"{request.username} created a {company_type} named {name}",
-        0x00FF00,
-    )
-    return jsonify({"success": True, "company": {k: v for k, v in company.items() if k != "_id"}})
-
-# Hire a worker for the company
-@app.route("/api/hire_worker", methods=["POST"])
-@requires_unbanned
-def hire_worker_endpoint():
-    data = request.get_json()
-    company_id = data.get("company_id")
-
-    company = Collections["companies"].find_one(
-        {"id": company_id, "owner": request.username}
-    )
-    if not company:
-        return jsonify({"error": "Company not found or not owner"}), 404
-
-    user = Collections["users"].find_one({"username": request.username})
-    worker_cost = COMPANY_TYPES[company["type"]]["worker_cost"]
-    if user["tokens"] < worker_cost:
-        return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
-
-    Collections["companies"].update_one({"id": company_id}, {"$inc": {"workers": 1}})
-    Collections["users"].update_one(
-        {"username": request.username}, {"$inc": {"tokens": -worker_cost}}
-    )
-    send_discord_notification(
-        "Worker Hired",
-        f"{request.username} hired a worker for {company['name']}",
-        0x00FF00,
-    )
-    return jsonify({"success": True})
-
-# Generate a random task for a company type
-def generate_task(company_type: str) -> dict:
-    task = random.choice(COMPANY_TASKS[company_type])
-    return {
-        "id": str(uuid4()),
-        "name": task["name"],
-        "product": task["product"],
-        "status": "in_progress",
-        "assigned_at": int(time.time()),
-    }
-
-# Assign a task to the company
-@app.route("/api/assign_task", methods=["POST"])
-@requires_unbanned
-def assign_task_endpoint():
-    data = request.get_json()
-    company_id = data.get("company_id")
-
-    company = Collections["companies"].find_one(
-        {"id": company_id, "owner": request.username}
-    )
-    if not company:
-        return jsonify({"error": "Company not found or not owner"}), 404
-
-    if len(company.get("tasks", [])) >= company["workers"]:
-        return jsonify({"error": "Not enough workers to assign more tasks"}), 400
-
-    task = generate_task(company["type"])
-    Collections["companies"].update_one(
-        {"id": company_id}, {"$push": {"tasks": task}}
-    )
-    return jsonify({"success": True, "task": task})
-
-# Complete a task with a minigame
-@app.route("/api/complete_task", methods=["POST"])
-@requires_unbanned
-def complete_task_endpoint():
-    data = request.get_json()
-    company_id = data.get("company_id")
-    task_id = data.get("task_id")
-    minigame_result = data.get("minigame_result")  # Pass/fail result of the minigame
-
-    company = Collections["companies"].find_one(
-        {"id": company_id, "owner": request.username}
-    )
-    if not company:
-        return jsonify({"error": "Company not found or not owner"}), 404
-
-    task = next((t for t in company["tasks"] if t["id"] == task_id), None)
-    if not task or task["status"] != "in_progress":
-        return jsonify({"error": "Task not found or already completed"}), 404
-
-    if not minigame_result:
-        return jsonify({"error": "Minigame failed", "code": "minigame-failed"}), 400
-
-    reward_range = COMPANY_TYPES[company["type"]]["task_reward_range"]
-    reward = random.randint(*reward_range)
-    Collections["companies"].update_one(
-        {"id": company_id, "tasks.id": task_id},
-        {"$set": {"tasks.$.status": "completed"}},
-    )
-    Collections["users"].update_one(
-        {"username": request.username}, {"$inc": {"tokens": reward}}
-    )
-    send_discord_notification(
-        "Task Completed",
-        f"{request.username} completed task '{task['name']}' for {company['name']} and earned {reward} tokens",
-        0x00FF00,
-    )
-    return jsonify({"success": True, "reward": reward, "product": task["product"]})
-
-# Sell products generated by tasks
-@app.route("/api/sell_product", methods=["POST"])
-@requires_unbanned
-def sell_product_endpoint():
-    data = request.get_json()
-    company_id = data.get("company_id")
-    product = data.get("product")
-
-    company = Collections["companies"].find_one(
-        {"id": company_id, "owner": request.username}
-    )
-    if not company:
-        return jsonify({"error": "Company not found or not owner"}), 404
-
-    # Simulate selling the product
-    sale_price = random.randint(100, 300)
-    Collections["users"].update_one(
-        {"username": request.username}, {"$inc": {"tokens": sale_price}}
-    )
-    send_discord_notification(
-        "Product Sold",
-        f"{request.username} sold {product} from {company['name']} for {sale_price} tokens",
-        0x00FF00,
-    )
-    return jsonify({"success": True, "sale_price": sale_price})
-
-# Fetch company details
-@app.route("/api/get_company", methods=["GET"])
-@requires_unbanned
-def get_company_endpoint():
-    company = Collections["companies"].find_one({"owner": request.username})
-    if not company:
-        return jsonify({"company": None})
-    return jsonify({"company": {k: v for k, v in company.items() if k != "_id"}})
-
-# Remove all old companies and refund owners
-def reset_companies():
+# Remove all companies and refund owners
+def remove_companies():
     companies = Collections["companies"].find()
     for company in companies:
-        if company.get("format", "v1") == "v2":
-            continue
-          
         owner = company["owner"]
-        refund_amount = 500 + (company["workers"] * 50)  # Refund base cost + workers
+        refund_amount = 500 + (company["workers"] * 100)  # Refund base cost + workers
         Collections["users"].update_one(
             {"username": owner}, {"$inc": {"tokens": refund_amount}}
         )
-        
-        Collections["companies"].delete_one({"id": company["id"]})
+    Collections["companies"].delete_many({})
 
-# New company system constants
-COMPANY_TYPES = {
-    "Tech Startup": {"base_cost": 1000, "worker_cost": 100, "task_reward_range": (300, 500)},
-    "Manufacturing Plant": {"base_cost": 1500, "worker_cost": 150, "task_reward_range": (500, 700)},
-    "Accounting Firm": {"base_cost": 1200, "worker_cost": 120, "task_reward_range": (400, 600)},
-}
+# Remove company-related routes
+@app.route("/api/create_company", methods=["POST"])
+def create_company_endpoint():
+    return jsonify({"error": "Company feature has been removed"}), 410
 
-# Predefined tasks for companies
-COMPANY_TASKS = {
-    "Tech Startup": [
-        {"name": "Develop a Mobile App", "product": "Mobile App"},
-        {"name": "Build a Website", "product": "Website"},
-        {"name": "Create a SaaS Tool", "product": "SaaS Tool"},
-    ],
-    "Manufacturing Plant": [
-        {"name": "Assemble Gadgets", "product": "Gadget"},
-        {"name": "Produce Widgets", "product": "Widget"},
-        {"name": "Manufacture Tools", "product": "Tool"},
-    ],
-    "Accounting Firm": [
-        {"name": "Prepare Tax Reports", "product": "Tax Report"},
-        {"name": "Audit Financial Statements", "product": "Audit Report"},
-        {"name": "Create Budget Plans", "product": "Budget Plan"},
-    ],
-}
+@app.route("/api/hire_worker", methods=["POST"])
+def hire_worker_endpoint():
+    return jsonify({"error": "Company feature has been removed"}), 410
+
+@app.route("/api/assign_task", methods=["POST"])
+def assign_task_endpoint():
+    return jsonify({"error": "Company feature has been removed"}), 410
+
+@app.route("/api/complete_task", methods=["POST"])
+def complete_task_endpoint():
+    return jsonify({"error": "Company feature has been removed"}), 410
+
+@app.route("/api/sell_product", methods=["POST"])
+def sell_product_endpoint():
+    return jsonify({"error": "Company feature has been removed"}), 410
+
+@app.route("/api/get_company", methods=["GET"])
+def get_company_endpoint():
+    return jsonify({"error": "Company feature has been removed"}), 410
+
+@app.route("/api/delete_company", methods=["POST"])
+def delete_company_endpoint():
+    return jsonify({"error": "Company feature has been removed"}), 410
 
 
 @app.route("/api/send_tokens", methods=["POST"])
@@ -3080,21 +2906,3 @@ def get_typing_users_endpoint():
     typing_data = Collections["messages"].find_one({"room": room, "type": "typing"}, {"_id": 0, "typing_users": 1})
     typing_users = typing_data.get("typing_users", []) if typing_data else []
     return jsonify({"typing_users": typing_users})
-
-@app.route("/api/delete_company", methods=["POST"])
-@requires_admin
-def delete_company_endpoint():
-    data = request.get_json()
-    company_id = data.get("company_id")
-
-    company = Collections["companies"].find_one({"id": company_id})
-    if not company:
-        return jsonify({"error": "Company not found", "code": "company-not-found"}), 404
-
-    Collections["companies"].delete_one({"id": company_id})
-    send_discord_notification(
-        "Company Deleted",
-        f"Admin {request.username} deleted company {company['name']}",
-        0xFF0000,
-    )
-    return jsonify({"success": True})
