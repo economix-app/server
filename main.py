@@ -571,8 +571,8 @@ def update_pet(pet_id: str):
         seconds_unfed = now - last_fed
         seconds_unplayed = now - last_play_time
 
-        new_hunger = max(0, pet["hunger"] - (seconds_unfed * (5 / 3600)))
-        new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (5 / 3600)))
+        new_hunger = max(0, pet["hunger"] - (seconds_unfed * (1 / 3600)))
+        new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (1 / 3600)))
 
         if new_hunger <= 0 or new_happiness <= 0:
           Collections["pets"].update_one(
