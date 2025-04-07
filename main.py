@@ -32,6 +32,7 @@ ITEM_CREATE_COOLDOWN = 60  # 1 minute
 TOKEN_MINE_COOLDOWN = 180  # 3 minutes
 MAX_ITEM_PRICE = 1000 * 1000 * 100  # 1 million
 MIN_ITEM_PRICE = 1
+DAILY_CASINO_LIMIT = 500  # Maximum tokens a user can spend in the casino per day
 
 DEBUG_MODE = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
 
@@ -501,6 +502,31 @@ def authenticate_user():
 
     request.username = user["username"]
     request.user_type = user.get("type", "user")
+
+    if request.endpoint in ["coin_flip_endpoint", "dice_roll_endpoint"]:
+        user = Collections["users"].find_one({"username": request.username})
+        if not user:
+            return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+        now = int(time.time())
+        last_reset = user.get("casino_limit_reset", 0)
+
+        # Reset daily casino limit if 24 hours have passed
+        if now - last_reset >= 86400:  # 24 hours
+            Collections["users"].update_one(
+                {"username": request.username},
+                {"$set": {"casino_tokens_spent": 0, "casino_limit_reset": now}},
+            )
+        elif user.get("casino_tokens_spent", 0) >= DAILY_CASINO_LIMIT:
+            return (
+                jsonify(
+                    {
+                        "error": "Daily casino limit reached",
+                        "code": "casino-limit-reached",
+                    }
+                ),
+                403,
+            )
 
 
 # Database Updaters
@@ -2326,6 +2352,24 @@ def coin_flip_endpoint():
     if user["tokens"] < bet_amount:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
 
+    if user["casino_tokens_spent"] + bet_amount > DAILY_CASINO_LIMIT:
+        return (
+            jsonify(
+                {
+                    "error": "Daily casino limit exceeded",
+                    "remaining": DAILY_CASINO_LIMIT - user["casino_tokens_spent"],
+                    "code": "casino-limit-exceeded",
+                }
+            ),
+            403,
+        )
+
+    # Update casino tokens spent
+    Collections["users"].update_one(
+        {"username": request.username},
+        {"$inc": {"casino_tokens_spent": bet_amount}},
+    )
+
     # Simulate coin flip
     result = random.choice(["heads", "tails"])
     won = result == choice
@@ -2425,6 +2469,24 @@ def dice_roll_endpoint():
 
     if user["tokens"] < bet_amount:
         return jsonify({"error": "Not enough tokens", "code": "not-enough-tokens"}), 402
+
+    if user["casino_tokens_spent"] + bet_amount > DAILY_CASINO_LIMIT:
+        return (
+            jsonify(
+                {
+                    "error": "Daily casino limit exceeded",
+                    "remaining": DAILY_CASINO_LIMIT - user["casino_tokens_spent"],
+                    "code": "casino-limit-exceeded",
+                }
+            ),
+            403,
+        )
+
+    # Update casino tokens spent
+    Collections["users"].update_one(
+        {"username": request.username},
+        {"$inc": {"casino_tokens_spent": bet_amount}},
+    )
 
     # Simulate dice roll
     result = random.randint(1, 6)
