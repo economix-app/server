@@ -1996,7 +1996,7 @@ def market_endpoint():
         enriched_items.append(item)
 
     # Sort items by plan: Pro+ first, then Pro, then normal users
-    enriched_items.sort(key=lambda x: ["proplus", "pro", "free"].index(x["ownerPlan"]))
+    enriched_items.sort(key=lambda x: ["proplus", "pro", "free"].index(x.get("ownerPlan", "free")))
 
     return jsonify(enriched_items)
 
