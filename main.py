@@ -104,6 +104,7 @@ Collections = {
     "companies": db.companies,
     "auctions": db.auctions,
     "trades": db.trades,
+    "reports": db.reports,
 }
 
 # AutoMod Configuration
@@ -237,6 +238,7 @@ def create_indexes():
     Collections["trades"].create_index(
         [("offerOwner", ASCENDING), ("requestOwner", ASCENDING)]
     )
+    Collections["reports"].create_index([("id", ASCENDING)], unique=True)
 
 
 create_indexes()
@@ -3215,3 +3217,63 @@ def delete_auction():
     Collections["auctions"].delete_one({"itemId": item_id})
 
     return jsonify({"success": True, "message": "Auction deleted."})
+
+
+# Submit a User Report
+@app.route("/api/report_user", methods=["POST"])
+@requires_unbanned
+def report_user_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    comment = data.get("comment")
+
+    if not username or not comment:
+        return jsonify({"error": "Missing username or comment"}), 400
+
+    report = {
+        "id": str(uuid4()),
+        "username": username,
+        "comment": comment,
+        "reportedBy": request.username,
+        "timestamp": int(time.time()),
+        "status": "pending",
+    }
+    Collections["reports"].insert_one(report)
+    return jsonify({"success": True})
+
+# Fetch All Reports (Admin Only)
+@app.route("/api/reports", methods=["GET"])
+@requires_admin
+def get_reports_endpoint():
+    reports = list(Collections["reports"].find({}, {"_id": 0}))
+    return jsonify(reports)
+
+# Handle Report Actions
+@app.route("/api/handle_report", methods=["POST"])
+@requires_admin
+def handle_report_endpoint():
+    data = request.get_json()
+    report_id = data.get("reportId")
+    action = data.get("action")
+    duration = data.get("duration")
+    reason = data.get("reason")
+
+    report = Collections["reports"].find_one({"id": report_id})
+    if not report:
+        return jsonify({"error": "Report not found"}), 404
+
+    if action == "ban":
+        if not duration or not reason:
+            return jsonify({"error": "Missing duration or reason for ban"}), 400
+        ban_user(report["username"], duration, reason)
+    elif action == "mute":
+        if not duration:
+            return jsonify({"error": "Missing duration for mute"}), 400
+        mute_user(report["username"], duration)
+    elif action == "cancel":
+        pass  # No additional action needed for cancel
+    else:
+        return jsonify({"error": "Invalid action"}), 400
+
+    Collections["reports"].update_one({"id": report_id}, {"$set": {"status": action}})
+    return jsonify({"success": True})
