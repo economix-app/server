@@ -1167,10 +1167,10 @@ def send_message(
     if room_name == "exclusive":
       if not (has_pro(username) or request.user_type in ["admin"]):
         return jsonify({"error": "Access denied", "code": "access-denied"}), 403
-    elif room_name == "staff":
+    if room_name == "staff":
       if request.user_type not in ["mod", "admin"]:
         return jsonify({"error": "Access denied", "code": "access-denied"}), 403
-    elif room_name != "global":
+    if room_name not in ["global", "exclusive", "staff"]:
       return jsonify({"error": "Invalid room", "code": "invalid-room"}), 400
 
     if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room_name):
@@ -1209,7 +1209,7 @@ def send_message(
         Collections["messages"].insert_one(
             {
                 "id": str(uuid4()),
-                "room": "global",
+                "room": room_name,
                 "username": "AutoMod",
                 "message": f"""
             <p><span style="color: #FF5555">[WARNING]</span> Detected <b>{deleted}x</b> Message Spam</p>
