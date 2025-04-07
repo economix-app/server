@@ -30,7 +30,7 @@ from watchdog.events import FileSystemEventHandler
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
 TOKEN_MINE_COOLDOWN = 180  # 3 minutes
-MAX_ITEM_PRICE = 1000000000000
+MAX_ITEM_PRICE = 1000 * 1000 * 100  # 1 million
 MIN_ITEM_PRICE = 1
 
 DEBUG_MODE = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
@@ -2895,24 +2895,33 @@ def get_auctions():
 @app.route("/api/create_auction", methods=["POST"])
 @requires_unbanned
 def create_auction():
-    data = request.get_json()
-    item_id = data.get("itemId")
-    starting_bid = float(data.get("startingBid"))
-    item = Collections["items"].find_one({"id": item_id, "owner": request.username})
-    if not item:
-        return jsonify({"error": "Item not found or unauthorized"}), 404
-    Collections["auctions"].insert_one({
-        "itemId": item_id,
-        "itemName": item["name"],
-        "itemRarity": {
-          "level": item["level"],
-          "rarity": item["rarity"]
-        },
-        "currentBid": starting_bid,
-        "owner": request.username,
-        "bids": []
-    })
-    return jsonify({"success": True})
+  data = request.get_json()
+  item_id = data.get("itemId")
+  starting_bid = data.get("startingBid")
+
+  # Validate starting bid
+  if starting_bid <= 0:
+    return jsonify({"error": "Invalid starting bid"}), 400
+  
+  if starting_bid > MAX_ITEM_PRICE:
+    return jsonify({"error": "Starting bid exceeds maximum price"}), 400
+
+  item = Collections["items"].find_one({"id": item_id, "owner": request.username})
+  if not item:
+    return jsonify({"error": "Item not found or unauthorized"}), 404
+
+  Collections["auctions"].insert_one({
+    "itemId": item_id,
+    "itemName": item["name"],
+    "itemRarity": {
+      "level": item["level"],
+      "rarity": item["rarity"]
+    },
+    "currentBid": starting_bid,
+    "owner": request.username,
+    "bids": []
+  })
+  return jsonify({"success": True})
 
 @app.route("/api/place_bid", methods=["POST"])
 @requires_unbanned
