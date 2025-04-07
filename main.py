@@ -2984,6 +2984,13 @@ def create_auction():
     data = request.get_json()
     item_id = data.get("itemId")
     starting_bid = data.get("startingBid")
+    
+    starting_bid = float(starting_bid) if starting_bid else 0
+    if not item_id or not starting_bid:
+        return (
+            jsonify({"error": "Missing itemId or startingBid", "code": "missing-parameters"}),
+            400,
+        )
 
     # Validate starting bid
     if starting_bid <= 0:
