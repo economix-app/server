@@ -1086,6 +1086,7 @@ def parse_command(username: str, command: str, room_name: str) -> str:
                 "message": message,
                 "timestamp": time.time(),
                 "badges": badges,
+                "type": user_data["type"],
             }
         )
         return None
@@ -1135,6 +1136,7 @@ def parse_command(username: str, command: str, room_name: str) -> str:
                 "timestamp": time.time(),
                 "badges": ["📩"],
                 "visibility": [username, recipient],
+                "type": "msg",
             }
         )
     else:
@@ -1198,6 +1200,7 @@ def send_message(
             """,
                 "timestamp": current_time,
                 "badges": ["⚙️"],
+                "type": "system",
             }
         )
         send_discord_notification(
@@ -1227,6 +1230,7 @@ def send_message(
                     "message": system_message,
                     "timestamp": time.time(),
                     "badges": ["⚙️"],
+                    "type": "system",
                 }
             )
     else:
@@ -1252,6 +1256,7 @@ def send_message(
                 "timestamp": time.time(),
                 "username_colour": "gold" if has_pro(username) else "normal",
                 "badges": badges,
+                "type": user["type"],
             }
         )
     return jsonify({"success": True})
