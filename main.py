@@ -411,8 +411,8 @@ def requires_pro(f):
         user = Collections["users"].find_one({"username": request.username})
         if user.get("override_plan", "free") not in ["pro", "proplus"]:
             if (
-                user.get("override_plan_expiration")
-                and user["override_plan_expiration"] < time.time()
+                user.get("override_plan_expires")
+                and user["override_plan_expires"] < time.time()
             ):
                 return (
                     jsonify(
@@ -434,8 +434,8 @@ def requires_proplus(f):
         user = Collections["users"].find_one({"username": request.username})
         if user.get("override_plan", "free") not in ["proplus"]:
             if (
-                user.get("override_plan_expiration")
-                and user["override_plan_expiration"] < time.time()
+                user.get("override_plan_expires")
+                and user["override_plan_expires"] < time.time()
             ):
                 return (
                     jsonify(
@@ -455,8 +455,8 @@ def has_pro(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["pro", "proplus"]:
         if (
-            user.get("override_plan_expiration") == 0
-            or user["override_plan_expiration"] > time.time()
+            user.get("override_plan_expires") == 0
+            or user["override_plan_expires"] > time.time()
         ):
             return True
     return False
@@ -466,8 +466,8 @@ def has_proplus(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["proplus"]:
         if (
-            user.get("override_plan_expiration") == 0
-            or user["override_plan_expiration"] > time.time()
+            user.get("override_plan_expires") == 0
+            or user["override_plan_expires"] > time.time()
         ):
             return True
     return False
@@ -477,8 +477,8 @@ def get_plan(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["pro", "proplus"]:
         if (
-            user.get("override_plan_expiration") == 0
-            or user["override_plan_expiration"] > time.time()
+            user.get("override_plan_expires") == 0
+            or user["override_plan_expires"] > time.time()
         ):
             return user.get("override_plan", "free")
     return user.get("override_plan", "free")
