@@ -455,8 +455,8 @@ def has_pro(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["pro", "proplus"]:
         if (
-            user.get("override_plan_expiration")
-            and user["override_plan_expiration"] > time.time()
+            user.get("override_plan_expiration") == 0
+            or user["override_plan_expiration"] > time.time()
         ):
             return True
     return False
@@ -466,11 +466,22 @@ def has_proplus(username):
     user = Collections["users"].find_one({"username": username})
     if user.get("override_plan", "free") in ["proplus"]:
         if (
-            user.get("override_plan_expiration")
-            and user["override_plan_expiration"] > time.time()
+            user.get("override_plan_expiration") == 0
+            or user["override_plan_expiration"] > time.time()
         ):
             return True
     return False
+
+
+def get_plan(username):
+    user = Collections["users"].find_one({"username": username})
+    if user.get("override_plan", "free") in ["pro", "proplus"]:
+        if (
+            user.get("override_plan_expiration") == 0
+            or user["override_plan_expiration"] > time.time()
+        ):
+            return user.get("override_plan", "free")
+    return user.get("override_plan", "free")
 
 
 # Middleware
@@ -1055,6 +1066,18 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         user_data = Collections["users"].find_one({"username": sudo_user})
         if not user_data:
             return f"User <b>{sudo_user}</b> not found"
+        badges = []
+        if user_data["type"] == "mod":
+            badges.append("🛡️")
+        elif user_data["type"] == "admin":
+            badges.append("🛠️")
+        elif user_data["type"] == "media":
+            badges.append("🎥")
+
+        if has_proplus(sudo_user):
+            badges.append("🌟")
+        elif has_pro(sudo_user):
+            badges.append("⭐")
         Collections["messages"].insert_one(
             {
                 "id": str(uuid4()),
@@ -1062,7 +1085,7 @@ def parse_command(username: str, command: str, room_name: str) -> str:
                 "username": sudo_user,
                 "message": message,
                 "timestamp": time.time(),
-                "type": user_data["type"],
+                "badges": badges,
             }
         )
         return None
@@ -1110,7 +1133,7 @@ def parse_command(username: str, command: str, room_name: str) -> str:
                 "username": f"{username} -> {recipient}",
                 "message": message,
                 "timestamp": time.time(),
-                "type": "msg",
+                "badges": ["📩"],
                 "visibility": [username, recipient],
             }
         )
@@ -1174,7 +1197,7 @@ def send_message(
             <p>User: <b>{username}</b> has been muted for <b>{mute_duration}</b></p>
             """,
                 "timestamp": current_time,
-                "type": "system",
+                "badges": ["⚙️"],
             }
         )
         send_discord_notification(
@@ -1203,10 +1226,23 @@ def send_message(
                     "username": "Command Handler",
                     "message": system_message,
                     "timestamp": time.time(),
-                    "type": "system",
+                    "badges": ["⚙️"],
                 }
             )
     else:
+        badges = []
+        if user["type"] == "mod":
+            badges.append("🛡️")
+        elif user["type"] == "admin":
+            badges.append("🛠️")
+        elif user["type"] == "media":
+            badges.append("🎥")
+
+        if has_proplus(username):
+            badges.append("🌟")
+        elif has_pro(username):
+            badges.append("⭐")
+
         Collections["messages"].insert_one(
             {
                 "id": str(uuid4()),
@@ -1214,7 +1250,8 @@ def send_message(
                 "username": username,
                 "message": sanitized_message,
                 "timestamp": time.time(),
-                "type": user["type"],
+                "username_colour": "gold" if has_pro(username) else "normal",
+                "badges": badges,
             }
         )
     return jsonify({"success": True})
@@ -1682,6 +1719,7 @@ def account_endpoint():
             "override_plan_expires": user.get("override_plan_expires"),
             "redeemed_creator_code": user.get("redeemed_creator_code"),
             "creator_code": user.get("creator_code"),
+            "plan": get_plan(user),
         }
     )
 
@@ -3241,12 +3279,14 @@ def report_user_endpoint():
     Collections["reports"].insert_one(report)
     return jsonify({"success": True})
 
+
 # Fetch All Reports (Admin Only)
 @app.route("/api/reports", methods=["GET"])
 @requires_admin
 def get_reports_endpoint():
     reports = list(Collections["reports"].find({"status": "pending"}, {"_id": 0}))
     return jsonify({"reports": reports})
+
 
 # Handle Report Actions
 @app.route("/api/handle_report", methods=["POST"])
