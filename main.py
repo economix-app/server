@@ -1424,8 +1424,17 @@ def unban_user(username: str) -> Tuple[dict, int]:
 
 
 def mute_user(username: str, length: str, notify: bool = True) -> Tuple[dict, int]:
-    if not Collections["users"].find_one({"username": username}):
+    user_to_mute = Collections["users"].find_one({"username": username})
+    if not user_to_mute:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    if user_to_mute.get("type") in ["mod", "admin"] and request.user_type == "mod":
+        return (
+            jsonify(
+                {"error": "Cannot mute other mods or admins", "code": "unauthorized"}
+            ),
+            403,
+        )
 
     end_time = parse_time(length)
     Collections["users"].update_one(
@@ -1441,8 +1450,17 @@ def mute_user(username: str, length: str, notify: bool = True) -> Tuple[dict, in
 
 
 def unmute_user(username: str, notify: bool = True) -> Tuple[dict, int]:
-    if not Collections["users"].find_one({"username": username}):
+    user_to_unmute = Collections["users"].find_one({"username": username})
+    if not user_to_unmute:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    if user_to_unmute.get("type") in ["mod", "admin"] and request.user_type == "mod":
+        return (
+            jsonify(
+                {"error": "Cannot unmute other mods or admins", "code": "unauthorized"}
+            ),
+            403,
+        )
 
     Collections["users"].update_one(
         {"username": username}, {"$set": {"muted": False, "muted_until": None}}
@@ -2984,11 +3002,13 @@ def create_auction():
     data = request.get_json()
     item_id = data.get("itemId")
     starting_bid = data.get("startingBid")
-    
+
     starting_bid = float(starting_bid) if starting_bid else 0
     if not item_id or not starting_bid:
         return (
-            jsonify({"error": "Missing itemId or startingBid", "code": "missing-parameters"}),
+            jsonify(
+                {"error": "Missing itemId or startingBid", "code": "missing-parameters"}
+            ),
             400,
         )
 
@@ -3011,7 +3031,7 @@ def create_auction():
             "currentBid": starting_bid,
             "owner": request.username,
             "bids": [],
-            "created_at": time.time()
+            "created_at": time.time(),
         }
     )
     return jsonify({"success": True})
