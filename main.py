@@ -1719,7 +1719,7 @@ def account_endpoint():
             "override_plan_expires": user.get("override_plan_expires"),
             "redeemed_creator_code": user.get("redeemed_creator_code"),
             "creator_code": user.get("creator_code"),
-            "plan": get_plan(user),
+            "plan": get_plan(request.username),
         }
     )
 
