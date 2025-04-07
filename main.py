@@ -2959,9 +2959,10 @@ def stop_auction():
     item_id = data.get("itemId")
 
     auction = Collections["auctions"].find_one({"itemId": item_id})
+    user = Collections["users"].find_one({"username": request.username})
     if not auction:
         return jsonify({"error": "Auction not found"}), 404
-    if auction["owner"] != request.username:
+    if auction["owner"] != request.username and user["type"] != "admin":
         return jsonify({"error": "Unauthorized"}), 403
 
     # Check if there is a valid bid
@@ -3016,3 +3017,17 @@ def stop_auction():
     )
 
     return jsonify({"success": True, "message": f"Auction stopped. {highest_bidder} won the item."})
+
+@app.route("/api/delete_auction", methods=["POST"])
+@requires_admin
+def delete_auction():
+    data = request.get_json()
+    item_id = data.get("itemId")
+
+    auction = Collections["auctions"].find_one({"itemId": item_id})
+    if not auction:
+        return jsonify({"error": "Auction not found"}), 404
+
+    Collections["auctions"].delete_one({"itemId": item_id})
+
+    return jsonify({"success": True, "message": "Auction deleted."})
