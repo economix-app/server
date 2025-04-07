@@ -1163,6 +1163,15 @@ def send_message(
             jsonify({"error": "Missing room or message", "code": "missing-parameters"}),
             400,
         )
+    
+    if room_name == "exclusive":
+      if not (has_pro(username) or request.user_type in ["admin"]):
+        return jsonify({"error": "Access denied", "code": "access-denied"}), 403
+    elif room_name == "staff":
+      if request.user_type not in ["mod", "admin"]:
+        return jsonify({"error": "Access denied", "code": "access-denied"}), 403
+    elif room_name != "global":
+      return jsonify({"error": "Invalid room", "code": "invalid-room"}), 400
 
     if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room_name):
         return jsonify({"error": "Invalid room name", "code": "invalid-room"}), 400
