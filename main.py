@@ -3245,7 +3245,7 @@ def report_user_endpoint():
 @app.route("/api/reports", methods=["GET"])
 @requires_admin
 def get_reports_endpoint():
-    reports = list(Collections["reports"].find({}, {"_id": 0}))
+    reports = list(Collections["reports"].find({"status": "pending"}, {"_id": 0}))
     return jsonify({"reports": reports})
 
 # Handle Report Actions
