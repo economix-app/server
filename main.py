@@ -818,6 +818,14 @@ def add_exp(username: str, exp: int):
     user = Collections["users"].find_one({"username": username})
     if not user:
         return
+
+    # Apply EXP multiplier based on plan
+    plan = get_plan(username)
+    if plan == "pro":
+        exp = int(exp * 1.5)
+    elif plan == "proplus":
+        exp = int(exp * 2.0)
+
     new_exp = user["exp"] + exp
     Collections["users"].update_one({"username": username}, {"$set": {"exp": new_exp}})
     if new_exp >= exp_for_level(user["level"] + 1):
@@ -1419,9 +1427,8 @@ def edit_item(
     if new_icon:
         updates["name.icon"] = html.escape(new_icon.strip())
     if new_rarity:
-        rarity = float(new_rarity)
-        updates["rarity"] = rarity
-        updates["level"] = get_level(rarity)
+        updates["rarity"] = float(new_rarity)
+        updates["level"] = get_level(float(new_rarity))
 
     if updates:
         Collections["items"].update_one({"id": item_id}, {"$set": updates})
