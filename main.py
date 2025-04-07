@@ -1991,9 +1991,13 @@ def market_endpoint():
     )
     enriched_items = []
     for item in items:
-        owner = Collections["users"].find_one({"username": item["owner"]}, {"override_plan": 1})
+        owner = Collections["users"].find_one({"username": item["owner"]})
         item["ownerPlan"] = get_plan(owner["username"]) if owner else "free"
         enriched_items.append(item)
+
+    # Sort items by plan: Pro+ first, then Pro, then normal users
+    enriched_items.sort(key=lambda x: ["proplus", "pro", "free"].index(x["ownerPlan"]))
+
     return jsonify(enriched_items)
 
 
