@@ -1987,9 +1987,14 @@ def mine_tokens_endpoint():
 def market_endpoint():
     items = Collections["items"].find(
         {"for_sale": True, "owner": {"$ne": request.username}},
-        {"_id": 0, "item_secret": 0},
+        {"_id": 0, "item_secret": 0}
     )
-    return jsonify(list(items))
+    enriched_items = []
+    for item in items:
+        owner = Collections["users"].find_one({"username": item["owner"]}, {"override_plan": 1})
+        item["ownerPlan"] = get_plan(owner["username"]) if owner else "free"
+        enriched_items.append(item)
+    return jsonify(enriched_items)
 
 
 @app.route("/api/sell_item", methods=["POST"])
@@ -2041,7 +2046,7 @@ def sell_item_endpoint():
     ).strip()
     send_discord_notification(
         "Item Listed" if update_data["for_sale"] else "Item Unlisted",
-        f"User {request.username} {'listed' if update_data['for_sale'] else 'unlisted'} {item_name} {'for ' + str(price) + ' tokens' if update_data['for_sale'] else ''}",
+        f"User {request.username} {'listed' if update_data["for_sale"] else 'unlisted'} {item_name} {'for ' + str(price) + ' tokens' if update_data['for_sale'] else ''}",
         0xFFFF00,
     )
     return jsonify({"success": True})
@@ -2204,7 +2209,7 @@ def leaderboard_endpoint():
         {"$match": {"banned": {"$ne": True}}},
         {"$sort": {"tokens": DESCENDING}},
         {"$limit": 10},
-        {"$project": {"_id": 0, "username": 1, "tokens": 1}},
+        {"$project": {"_id": 0, "username": 1, "tokens": 1, "override_plan": 1}},
     ]
     results = list(Collections["users"].aggregate(pipeline))
 
@@ -2216,6 +2221,7 @@ def leaderboard_endpoint():
 
     for i, item in enumerate(results):
         item["place"] = ordinal(i + 1)
+        item["plan"] = get_plan(item["username"])
     return jsonify({"leaderboard": results})
 
 
