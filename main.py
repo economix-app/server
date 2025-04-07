@@ -122,14 +122,19 @@ AUTOMOD_CONFIG = {
     "SUBNET_BLOCKING": True,
 }
 
+
 @app.errorhandler(500)
 def internal_server_error(error):
     # Log the full exception details
     exc_type, exc_value, exc_traceback = sys.exc_info()
-    stack_trace = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-    
+    stack_trace = "".join(
+        traceback.format_exception(exc_type, exc_value, exc_traceback)
+    )
+
     error_message = str(error) or "An unexpected error occurred"
-    app.logger.error(f"500 Internal Server Error: {error_message}\nStack Trace:\n{stack_trace}")
+    app.logger.error(
+        f"500 Internal Server Error: {error_message}\nStack Trace:\n{stack_trace}"
+    )
 
     # Detailed response for debugging (only in DEBUG mode or if explicitly enabled)
     if DEBUG_MODE:
@@ -161,6 +166,7 @@ def internal_server_error(error):
         }
 
     return jsonify(response), 500
+
 
 @app.errorhandler(Exception)
 def handle_unhandled_exception(e):
@@ -227,7 +233,9 @@ def create_indexes():
     Collections["companies"].create_index([("owner", ASCENDING)])
     Collections["auctions"].create_index([("item_id", ASCENDING)])
     Collections["auctions"].create_index([("owner", ASCENDING)])
-    Collections["trades"].create_index([("offerOwner", ASCENDING), ("requestOwner", ASCENDING)])
+    Collections["trades"].create_index(
+        [("offerOwner", ASCENDING), ("requestOwner", ASCENDING)]
+    )
 
 
 create_indexes()
@@ -535,26 +543,26 @@ def update_item(item_id: str):
 def update_pet(pet_id: str):
     pet = Collections["pets"].find_one({"id": pet_id})
     if not pet:
-      return
+        return
 
     defaults = {
-      "alive": True,
-      "last_fed": int(time.time()),
-      "level": 1,
-      "exp": 0,
-      "benefits": {"token_bonus": 1},
-      "base_price": 100,
-      "hunger": 100,
-      "happiness": 100,
-      "last_play_time": int(time.time()),  # Initialize last_play_time
-      "last_update_time": int(time.time()),  # Track the last update time
+        "alive": True,
+        "last_fed": int(time.time()),
+        "level": 1,
+        "exp": 0,
+        "benefits": {"token_bonus": 1},
+        "base_price": 100,
+        "hunger": 100,
+        "happiness": 100,
+        "last_play_time": int(time.time()),  # Initialize last_play_time
+        "last_update_time": int(time.time()),  # Track the last update time
     }
     updates = {}
     for key, value in defaults.items():
-      if key not in pet:
-        updates[key] = value
+        if key not in pet:
+            updates[key] = value
     if updates:
-      Collections["pets"].update_one({"id": pet_id}, {"$set": updates})
+        Collections["pets"].update_one({"id": pet_id}, {"$set": updates})
 
     pet = Collections["pets"].find_one({"id": pet_id})
 
@@ -566,41 +574,42 @@ def update_pet(pet_id: str):
     # Only update hunger and happiness if enough time has passed
     update_interval = 60 * 60  # 1 hour in seconds
     if now - last_update_time >= update_interval:
-      # Health status and death check
-      if pet["alive"]:
-        seconds_unfed = now - last_fed
-        seconds_unplayed = now - last_play_time
+        # Health status and death check
+        if pet["alive"]:
+            seconds_unfed = now - last_fed
+            seconds_unplayed = now - last_play_time
 
-        new_hunger = max(0, pet["hunger"] - (seconds_unfed * (1 / 3600)))
-        new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (1 / 3600)))
+            new_hunger = max(0, pet["hunger"] - (seconds_unfed * (1 / 3600)))
+            new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (1 / 3600)))
 
-        if new_hunger <= 0 or new_happiness <= 0:
-          Collections["pets"].update_one(
-            {"id": pet_id}, {"$set": {"hunger": 0, "happiness": 0, "alive": False}}
-          )
-          send_discord_notification(
-            "Pet Died",
-            f"User {pet['owner']}'s pet {pet['name']} died due to neglect.",
-            0xFF0000,
-          )
-        else:
-          Collections["pets"].update_one(
-            {"id": pet_id},
-            {
-              "$set": {
-                "hunger": new_hunger,
-                "happiness": new_happiness,
-                "last_update_time": now,
-              }
-            },
-          )
+            if new_hunger <= 0 or new_happiness <= 0:
+                Collections["pets"].update_one(
+                    {"id": pet_id},
+                    {"$set": {"hunger": 0, "happiness": 0, "alive": False}},
+                )
+                send_discord_notification(
+                    "Pet Died",
+                    f"User {pet['owner']}'s pet {pet['name']} died due to neglect.",
+                    0xFF0000,
+                )
+            else:
+                Collections["pets"].update_one(
+                    {"id": pet_id},
+                    {
+                        "$set": {
+                            "hunger": new_hunger,
+                            "happiness": new_happiness,
+                            "last_update_time": now,
+                        }
+                    },
+                )
 
-      # Update benefits based on level (only if alive)
-      if pet["alive"]:
-        pet["benefits"]["token_bonus"] = pet["level"]  # +1 token per level
-        Collections["pets"].update_one(
-          {"id": pet_id}, {"$set": {"benefits": pet["benefits"]}}
-        )
+        # Update benefits based on level (only if alive)
+        if pet["alive"]:
+            pet["benefits"]["token_bonus"] = pet["level"]  # +1 token per level
+            Collections["pets"].update_one(
+                {"id": pet_id}, {"$set": {"benefits": pet["benefits"]}}
+            )
 
 
 def level_up_pet(pet_id: str, exp_gain: int):
@@ -1753,7 +1762,9 @@ def buy_pet_endpoint():
         "New Pet Bought",
         f"User {request.username} bought pet: {pet['name']} for {price} tokens",
     )
-    return jsonify({"success": True, "pet": {k: v for k, v in pet.items() if k not in ["_id"]}})
+    return jsonify(
+        {"success": True, "pet": {k: v for k, v in pet.items() if k not in ["_id"]}}
+    )
 
 
 @app.route("/api/feed_pet", methods=["POST"])
@@ -1777,13 +1788,13 @@ def feed_pet_endpoint():
         {"username": request.username}, {"$inc": {"tokens": -10}}
     )
     Collections["pets"].update_one(
-      {"id": pet_id},
-      {
-        "$inc": {
-          "happiness": min(10, 100 - pet["happiness"]),
-          "hunger": min(10, 100 - pet["hunger"])
-        }
-      }
+        {"id": pet_id},
+        {
+            "$inc": {
+                "happiness": min(10, 100 - pet["happiness"]),
+                "hunger": min(10, 100 - pet["hunger"]),
+            }
+        },
     )
     level_up_pet(pet_id, 3)  # Gain 3 exp per feeding
     update_pet(pet_id)
@@ -1791,7 +1802,8 @@ def feed_pet_endpoint():
         "Pet Fed", f"User {request.username} fed pet: {pet['name']}"
     )
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/play_with_pet", methods=["POST"])
 @requires_unbanned
 def play_with_pet_endpoint():
@@ -1799,38 +1811,41 @@ def play_with_pet_endpoint():
     pet_id = data.get("pet_id")
     user = Collections["users"].find_one({"username": request.username})
     if not user:
-      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
     pet = Collections["pets"].find_one({"id": pet_id})
     if not pet or not pet["alive"]:
-      return jsonify({"error": "Pet not found or dead", "code": "pet-not-found"}), 404
+        return jsonify({"error": "Pet not found or dead", "code": "pet-not-found"}), 404
 
     now = time.time()
     last_play_time = pet.get("last_play_time", 0)
     cooldown = 300  # 5 minutes in seconds
 
     if now - last_play_time < cooldown:
-      return jsonify({
-        "error": "Cooldown active",
-        "remaining": cooldown - (now - last_play_time),
-        "code": "cooldown-active"
-      }), 429
+        return (
+            jsonify(
+                {
+                    "error": "Cooldown active",
+                    "remaining": cooldown - (now - last_play_time),
+                    "code": "cooldown-active",
+                }
+            ),
+            429,
+        )
 
     Collections["pets"].update_one(
-      {"id": pet_id},
-      {
-        "$inc": {
-          "happiness": min(10, 100 - pet["happiness"])
+        {"id": pet_id},
+        {
+            "$inc": {"happiness": min(10, 100 - pet["happiness"])},
+            "$set": {"last_play_time": now},
         },
-        "$set": {"last_play_time": now}
-      }
     )
     Collections["users"].update_one(
-      {"username": request.username}, {"$inc": {"exp": 5}}
+        {"username": request.username}, {"$inc": {"exp": 5}}
     )
     update_account(request.username)
     update_pet(pet_id)
     send_discord_notification(
-      "Pet Played With", f"User {request.username} played with pet: {pet['name']}"
+        "Pet Played With", f"User {request.username} played with pet: {pet['name']}"
     )
     return jsonify({"success": True})
 
@@ -2462,7 +2477,10 @@ def send_tokens_endpoint():
     amount = data.get("amount")
 
     if not recipient or not amount:
-        return jsonify({"error": "Missing Parameters", "code": "missing-parameters"}), 400
+        return (
+            jsonify({"error": "Missing Parameters", "code": "missing-parameters"}),
+            400,
+        )
 
     try:
         amount = int(amount)
@@ -2491,7 +2509,10 @@ def send_tokens_endpoint():
             {"username": recipient}, {"$inc": {"tokens": amount}}
         )
     except PyMongoError:
-        return jsonify({"error": "Internal Server Error", "code": "internal-error"}), 500
+        return (
+            jsonify({"error": "Internal Server Error", "code": "internal-error"}),
+            500,
+        )
 
     send_discord_notification(
         "Tokens Sent", f"{request.username} sent {amount} tokens to {recipient}"
@@ -2795,7 +2816,8 @@ def get_banned_ips_endpoint():
 def get_logs():
     with open("app.log", "r") as f:
         return f.read()
-      
+
+
 @app.route("/api/restore_pet", methods=["POST"])
 @requires_admin
 def restore_pet_endpoint():
@@ -2804,13 +2826,12 @@ def restore_pet_endpoint():
 
     pet = Collections["pets"].find_one({"id": pet_id})
     if not pet:
-      return jsonify({"error": "Pet not found", "code": "pet-not-found"}), 404
+        return jsonify({"error": "Pet not found", "code": "pet-not-found"}), 404
 
     Collections["pets"].update_one(
-      {"id": pet_id},
-      {"$set": {"alive": True, "happiness": 100, "hunger": 100}}
+        {"id": pet_id}, {"$set": {"alive": True, "happiness": 100, "hunger": 100}}
     )
-    
+
     return jsonify({"success": True})
 
 
@@ -2818,18 +2839,22 @@ def restore_pet_endpoint():
 def ping():
     return "200 OK"
 
+
 @app.route("/api/start_typing", methods=["POST"])
 @requires_unbanned
 def start_typing_endpoint():
     data = request.get_json()
     room = data.get("room", "global")
     if not room:
-        return jsonify({"error": "Missing room parameter", "code": "missing-parameters"}), 400
+        return (
+            jsonify({"error": "Missing room parameter", "code": "missing-parameters"}),
+            400,
+        )
 
     Collections["messages"].update_one(
         {"room": room, "type": "typing"},
         {"$addToSet": {"typing_users": request.username}},
-        upsert=True
+        upsert=True,
     )
     return jsonify({"success": True})
 
@@ -2840,11 +2865,13 @@ def stop_typing_endpoint():
     data = request.get_json()
     room = data.get("room", "global")
     if not room:
-        return jsonify({"error": "Missing room parameter", "code": "missing-parameters"}), 400
+        return (
+            jsonify({"error": "Missing room parameter", "code": "missing-parameters"}),
+            400,
+        )
 
     Collections["messages"].update_one(
-        {"room": room, "type": "typing"},
-        {"$pull": {"typing_users": request.username}}
+        {"room": room, "type": "typing"}, {"$pull": {"typing_users": request.username}}
     )
     return jsonify({"success": True})
 
@@ -2853,7 +2880,9 @@ def stop_typing_endpoint():
 @requires_unbanned
 def get_typing_users_endpoint():
     room = request.args.get("room", "global")
-    typing_data = Collections["messages"].find_one({"room": room, "type": "typing"}, {"_id": 0, "typing_users": 1})
+    typing_data = Collections["messages"].find_one(
+        {"room": room, "type": "typing"}, {"_id": 0, "typing_users": 1}
+    )
     typing_users = typing_data.get("typing_users", []) if typing_data else []
     return jsonify({"typing_users": typing_users})
 
@@ -2889,39 +2918,97 @@ def daily_free_spin_endpoint():
 @app.route("/api/auctions", methods=["GET"])
 @requires_unbanned
 def get_auctions():
+    now = time.time()
+    expired_auctions = Collections["auctions"].find(
+        {"created_at": {"$lte": now - 60 * 60 * 24}}
+    )
+    for auction in expired_auctions:
+        item_id = auction["itemId"]
+        owner = auction["owner"]
+        highest_bidder = auction.get("currentBidder")
+        bid_amount = auction.get("currentBid", 0)
+
+        if highest_bidder:
+            # Transfer the item to the highest bidder
+            with client.start_session() as session:
+                with session.start_transaction():
+                    Collections["users"].update_one(
+                        {"username": owner},
+                        {"$pull": {"items": item_id}},
+                        session=session,
+                    )
+                    Collections["users"].update_one(
+                        {"username": highest_bidder},
+                        {"$push": {"items": item_id}},
+                        session=session,
+                    )
+                    Collections["items"].update_one(
+                        {"id": item_id},
+                        {
+                            "$set": {
+                                "owner": highest_bidder,
+                                "for_sale": False,
+                                "price": 0,
+                            }
+                        },
+                        session=session,
+                    )
+                    Collections["users"].update_one(
+                        {"username": owner},
+                        {"$inc": {"tokens": bid_amount}},
+                        session=session,
+                    )
+        else:
+            # No bids, return the item to the owner
+            Collections["items"].update_one(
+                {"id": item_id}, {"$set": {"for_sale": False, "price": 0}}
+            )
+
+        # Remove the auction
+        Collections["auctions"].delete_one({"itemId": item_id})
+
+        # Notify via Discord
+        send_discord_notification(
+            "Auction Ended",
+            f"Auction for item {item_id} has ended. {'No bids were placed.' if not highest_bidder else f'{highest_bidder} won the auction with a bid of {bid_amount} tokens.'}",
+            0x00FF00,
+        )
+
     auctions = list(Collections["auctions"].find({}, {"_id": 0}))
     return jsonify({"auctions": auctions})
+
 
 @app.route("/api/create_auction", methods=["POST"])
 @requires_unbanned
 def create_auction():
-  data = request.get_json()
-  item_id = data.get("itemId")
-  starting_bid = data.get("startingBid")
+    data = request.get_json()
+    item_id = data.get("itemId")
+    starting_bid = data.get("startingBid")
 
-  # Validate starting bid
-  if starting_bid <= 0:
-    return jsonify({"error": "Invalid starting bid"}), 400
-  
-  if starting_bid > MAX_ITEM_PRICE:
-    return jsonify({"error": "Starting bid exceeds maximum price"}), 400
+    # Validate starting bid
+    if starting_bid <= 0:
+        return jsonify({"error": "Invalid starting bid"}), 400
 
-  item = Collections["items"].find_one({"id": item_id, "owner": request.username})
-  if not item:
-    return jsonify({"error": "Item not found or unauthorized"}), 404
+    if starting_bid > MAX_ITEM_PRICE:
+        return jsonify({"error": "Starting bid exceeds maximum price"}), 400
 
-  Collections["auctions"].insert_one({
-    "itemId": item_id,
-    "itemName": item["name"],
-    "itemRarity": {
-      "level": item["level"],
-      "rarity": item["rarity"]
-    },
-    "currentBid": starting_bid,
-    "owner": request.username,
-    "bids": []
-  })
-  return jsonify({"success": True})
+    item = Collections["items"].find_one({"id": item_id, "owner": request.username})
+    if not item:
+        return jsonify({"error": "Item not found or unauthorized"}), 404
+
+    Collections["auctions"].insert_one(
+        {
+            "itemId": item_id,
+            "itemName": item["name"],
+            "itemRarity": {"level": item["level"], "rarity": item["rarity"]},
+            "currentBid": starting_bid,
+            "owner": request.username,
+            "bids": [],
+            "created_at": time.time()
+        }
+    )
+    return jsonify({"success": True})
+
 
 @app.route("/api/place_bid", methods=["POST"])
 @requires_unbanned
@@ -2944,22 +3031,22 @@ def place_bid():
     if "currentBidder" in auction:
         Collections["users"].update_one(
             {"username": auction["currentBidder"]},
-            {"$inc": {"tokens": auction["currentBid"]}}
+            {"$inc": {"tokens": auction["currentBid"]}},
         )
 
     # Deduct tokens from the new bidder
     Collections["users"].update_one(
-        {"username": request.username},
-        {"$inc": {"tokens": -bid_amount}}
+        {"username": request.username}, {"$inc": {"tokens": -bid_amount}}
     )
 
     # Update auction
     Collections["auctions"].update_one(
         {"itemId": item_id},
-        {"$set": {"currentBid": bid_amount, "currentBidder": request.username}}
+        {"$set": {"currentBid": bid_amount, "currentBidder": request.username}},
     )
 
     return jsonify({"success": True})
+
 
 @app.route("/api/stop_auction", methods=["POST"])
 @requires_unbanned
@@ -2989,30 +3076,26 @@ def stop_auction():
         with session.start_transaction():
             # Deduct the item from the owner's inventory
             Collections["users"].update_one(
-                {"username": owner},
-                {"$pull": {"items": item_id}},
-                session=session
+                {"username": owner}, {"$pull": {"items": item_id}}, session=session
             )
 
             # Add the item to the highest bidder's inventory
             Collections["users"].update_one(
                 {"username": highest_bidder},
                 {"$push": {"items": item_id}},
-                session=session
+                session=session,
             )
 
             # Update the item's owner
             Collections["items"].update_one(
                 {"id": item_id},
                 {"$set": {"owner": highest_bidder, "for_sale": False, "price": 0}},
-                session=session
+                session=session,
             )
 
             # Transfer the bid amount to the auction owner
             Collections["users"].update_one(
-                {"username": owner},
-                {"$inc": {"tokens": bid_amount}},
-                session=session
+                {"username": owner}, {"$inc": {"tokens": bid_amount}}, session=session
             )
 
     # Remove the auction
@@ -3022,10 +3105,13 @@ def stop_auction():
     send_discord_notification(
         "Auction Stopped",
         f"Auction for item {item_id} has ended. {highest_bidder} won the auction with a bid of {bid_amount} tokens. {owner} received the tokens.",
-        0x00FF00
+        0x00FF00,
     )
 
-    return jsonify({"success": True, "message": f"Auction stopped. {highest_bidder} won the item."})
+    return jsonify(
+        {"success": True, "message": f"Auction stopped. {highest_bidder} won the item."}
+    )
+
 
 @app.route("/api/delete_auction", methods=["POST"])
 @requires_admin
