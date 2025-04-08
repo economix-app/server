@@ -3349,3 +3349,49 @@ def handle_report_endpoint():
 
     Collections["reports"].update_one({"id": report_id}, {"$set": {"status": action}})
     return jsonify({"success": True})
+  
+@app.route("/api/get_user_data", methods=["POST"])
+@requires_admin
+def get_user_data_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+
+    if not username:
+      return jsonify({"error": "Username not provided"}), 400
+
+    user = Collections["users"].find_one({"username": username})
+    if not user:
+      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    # Find other users created with the same IP
+    same_ip_users = list(
+      Collections["users"].find(
+        {"creation_ip": user.get("creation_ip"), "username": {"$ne": username}},
+        {"_id": 0, "username": 1},
+      )
+    )
+
+    # Prepare response
+    user_data = {
+      "username": user["username"],
+      "ip": user.get("creation_ip"),
+      "creation_time": user["created_at"],
+      "punishment_history": {
+        "banned": user.get("banned"),
+        "banned_until": user.get("banned_until"),
+        "banned_reason": user.get("banned_reason"),
+        "muted": user.get("muted"),
+        "muted_until": user.get("muted_until"),
+      },
+      "history": user.get("history", []),
+      "tokens": user["tokens"],
+      "level": user.get("level"),
+      "exp": user.get("exp"),
+      "plan_status": get_plan(username),
+      "items_count": len(user.get("items", [])),
+      "pets_count": len(user.get("pets", [])),
+      "other_users_same_ip": [u["username"] for u in same_ip_users],
+    }
+
+    return jsonify({"success": True, "user_data": user_data})
+  
