@@ -26,7 +26,6 @@ import requests
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from fpdf import FPDF
 
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute

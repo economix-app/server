@@ -9,4 +9,3 @@ pillow
 better_profanity
 requests
 watchdog
-fpdf
