@@ -1272,7 +1272,7 @@ def send_message(
                 "message": sanitized_message,
                 "timestamp": time.time(),
                 "nameplate": "gold" if has_pro(username) else "normal",
-                "messageplate": "tokyo_tower" if user["type"] == "admin" else None,
+                "messageplate": "tokyo-tower" if user["type"] == "admin" else None,
                 "badges": badges,
                 "type": user["type"],
             }
