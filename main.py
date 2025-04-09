@@ -1271,7 +1271,7 @@ def send_message(
                 "username": username,
                 "message": sanitized_message,
                 "timestamp": time.time(),
-                "username_colour": "gold" if has_pro(username) else "normal",
+                "nameplate": "gold" if has_pro(username) else "normal",
                 "badges": badges,
                 "type": user["type"],
             }
