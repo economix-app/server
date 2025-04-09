@@ -122,6 +122,12 @@ AUTOMOD_CONFIG = {
     "FAILED_LOGIN_WINDOW": 60,
     "MIN_ACCOUNT_AGE": 3600,
     "SUBNET_BLOCKING": True,
+    "TOKEN_TRANSFER_THRESHOLD": 1000,  # Max tokens transferable in a single transaction
+    "TOKEN_TRANSFER_TIME_WINDOW": 3600,  # 1 hour
+    "NEW_ACCOUNT_TOKEN_TRANSFER_LIMIT": 20,  # Max tokens transferable by new accounts
+    "NEW_ACCOUNT_AGE_LIMIT": 86400,  # 24 hours
+    "EXPLOIT_DETECTION_TIME_WINDOW": 3600,  # 1 hour
+    "EXPLOIT_DETECTION_THRESHOLD": 3,  # Max suspicious actions in the time window
 }
 
 
@@ -1163,15 +1169,15 @@ def send_message(
             jsonify({"error": "Missing room or message", "code": "missing-parameters"}),
             400,
         )
-    
+
     if room_name == "exclusive":
-      if not (has_pro(username) or request.user_type in ["admin"]):
-        return jsonify({"error": "Access denied", "code": "access-denied"}), 403
+        if not (has_pro(username) or request.user_type in ["admin"]):
+            return jsonify({"error": "Access denied", "code": "access-denied"}), 403
     if room_name == "staff":
-      if request.user_type not in ["mod", "admin"]:
-        return jsonify({"error": "Access denied", "code": "access-denied"}), 403
+        if request.user_type not in ["mod", "admin"]:
+            return jsonify({"error": "Access denied", "code": "access-denied"}), 403
     if room_name not in ["global", "exclusive", "staff"]:
-      return jsonify({"error": "Invalid room", "code": "invalid-room"}), 400
+        return jsonify({"error": "Invalid room", "code": "invalid-room"}), 400
 
     if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room_name):
         return jsonify({"error": "Invalid room name", "code": "invalid-room"}), 400
@@ -1752,6 +1758,35 @@ def delete_account_endpoint():
     user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    # Check for suspicious token transfers before deletion
+    recent_transfers = Collections["messages"].count_documents(
+        {
+            "room": "logs",
+            "username": request.username,
+            "type": "system",
+            "timestamp": {
+                "$gt": time.time() - AUTOMOD_CONFIG["EXPLOIT_DETECTION_TIME_WINDOW"]
+            },
+            "message": {"$regex": "sent .* tokens"},
+        }
+    )
+    if recent_transfers > 0:
+        send_discord_notification(
+            "Suspicious Account Deletion",
+            f"User {request.username} attempted to delete their account after transferring tokens.",
+            0xFF0000,
+        )
+        return (
+            jsonify(
+                {
+                    "error": "Suspicious activity detected. Account deletion blocked.",
+                    "code": "suspicious-deletion",
+                }
+            ),
+            403,
+        )
+
     Collections["items"].delete_many({"owner": request.username})
     Collections["users"].delete_one({"username": request.username})
     send_discord_notification("User deleted", f"Username: {request.username}")
@@ -1975,6 +2010,14 @@ def mine_tokens_endpoint():
             429,
         )
 
+    # Detect token farming patterns
+    if user["tokens"] > 10000:  # Arbitrary threshold for excessive tokens
+        send_discord_notification(
+            "Suspicious Token Mining",
+            f"User {request.username} has an unusually high token balance ({user['tokens']}).",
+            0xFF0000,
+        )
+
     tokens = random.randint(5, 10)
 
     extra_tokens = 0
@@ -2004,7 +2047,7 @@ def mine_tokens_endpoint():
 def market_endpoint():
     items = Collections["items"].find(
         {"for_sale": True, "owner": {"$ne": request.username}},
-        {"_id": 0, "item_secret": 0}
+        {"_id": 0, "item_secret": 0},
     )
     enriched_items = []
     for item in items:
@@ -2013,7 +2056,9 @@ def market_endpoint():
         enriched_items.append(item)
 
     # Sort items by plan: Pro+ first, then Pro, then normal users
-    enriched_items.sort(key=lambda x: ["proplus", "pro", "free"].index(x.get("ownerPlan") or "free"))
+    enriched_items.sort(
+        key=lambda x: ["proplus", "pro", "free"].index(x.get("ownerPlan") or "free")
+    )
 
     return jsonify(enriched_items)
 
@@ -2649,6 +2694,51 @@ def send_tokens_endpoint():
     user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not Found", "code": "user-not-found"}), 404
+
+    # Check if the sender is a new account
+    account_age = time.time() - user["created_at"]
+    if (
+        account_age < AUTOMOD_CONFIG["NEW_ACCOUNT_AGE_LIMIT"]
+        and amount > AUTOMOD_CONFIG["NEW_ACCOUNT_TOKEN_TRANSFER_LIMIT"]
+    ):
+        return (
+            jsonify(
+                {
+                    "error": "New accounts cannot transfer large amounts of tokens",
+                    "code": "new-account-limit",
+                }
+            ),
+            403,
+        )
+
+    # Check if the transfer exceeds the global threshold
+    if amount > AUTOMOD_CONFIG["TOKEN_TRANSFER_THRESHOLD"]:
+        return (
+            jsonify(
+                {"error": "Transfer exceeds allowed limit", "code": "transfer-limit"}
+            ),
+            403,
+        )
+
+    # Check for suspicious activity
+    recent_transfers = Collections["messages"].count_documents(
+        {
+            "room": "logs",
+            "username": request.username,
+            "type": "system",
+            "timestamp": {
+                "$gt": time.time() - AUTOMOD_CONFIG["EXPLOIT_DETECTION_TIME_WINDOW"]
+            },
+            "message": {"$regex": "sent .* tokens"},
+        }
+    )
+    if recent_transfers >= AUTOMOD_CONFIG["EXPLOIT_DETECTION_THRESHOLD"]:
+        return (
+            jsonify(
+                {"error": "Suspicious activity detected", "code": "suspicious-activity"}
+            ),
+            403,
+        )
 
     if user["tokens"] < amount:
         return jsonify({"error": "Not enough Tokens", "code": "not-enough-tokens"}), 402
@@ -3349,7 +3439,8 @@ def handle_report_endpoint():
 
     Collections["reports"].update_one({"id": report_id}, {"$set": {"status": action}})
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/get_user_data", methods=["POST"])
 @requires_admin
 def get_user_data_endpoint():
@@ -3357,41 +3448,40 @@ def get_user_data_endpoint():
     username = data.get("username")
 
     if not username:
-      return jsonify({"error": "Username not provided"}), 400
+        return jsonify({"error": "Username not provided"}), 400
 
     user = Collections["users"].find_one({"username": username})
     if not user:
-      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     # Find other users created with the same IP
     same_ip_users = list(
-      Collections["users"].find(
-        {"creation_ip": user.get("creation_ip"), "username": {"$ne": username}},
-        {"_id": 0, "username": 1},
-      )
+        Collections["users"].find(
+            {"creation_ip": user.get("creation_ip"), "username": {"$ne": username}},
+            {"_id": 0, "username": 1},
+        )
     )
 
     # Prepare response
     user_data = {
-      "username": user["username"],
-      "ip": user.get("creation_ip"),
-      "creation_time": user["created_at"],
-      "punishment_history": {
-        "banned": user.get("banned"),
-        "banned_until": user.get("banned_until"),
-        "banned_reason": user.get("banned_reason"),
-        "muted": user.get("muted"),
-        "muted_until": user.get("muted_until"),
-      },
-      "history": user.get("history", []),
-      "tokens": user["tokens"],
-      "level": user.get("level"),
-      "exp": user.get("exp"),
-      "plan_status": get_plan(username),
-      "items_count": len(user.get("items", [])),
-      "pets_count": len(user.get("pets", [])),
-      "other_users_same_ip": [u["username"] for u in same_ip_users],
+        "username": user["username"],
+        "ip": user.get("creation_ip"),
+        "creation_time": user["created_at"],
+        "punishment_history": {
+            "banned": user.get("banned"),
+            "banned_until": user.get("banned_until"),
+            "banned_reason": user.get("banned_reason"),
+            "muted": user.get("muted"),
+            "muted_until": user.get("muted_until"),
+        },
+        "history": user.get("history", []),
+        "tokens": user["tokens"],
+        "level": user.get("level"),
+        "exp": user.get("exp"),
+        "plan_status": get_plan(username),
+        "items_count": len(user.get("items", [])),
+        "pets_count": len(user.get("pets", [])),
+        "other_users_same_ip": [u["username"] for u in same_ip_users],
     }
 
     return jsonify({"success": True, "user_data": user_data})
-  
