@@ -1152,6 +1152,8 @@ def parse_command(username: str, command: str, room_name: str) -> str:
                 "timestamp": time.time(),
                 "badges": badges,
                 "type": user_data["type"],
+                "messageplate": user_data.get("equipped_messageplate"),
+                "nameplate": "gold" if has_pro(sudo_user) else None,
             }
         )
         return None
@@ -1328,8 +1330,8 @@ def send_message(
                 "username": username,
                 "message": sanitized_message,
                 "timestamp": time.time(),
-                "nameplate": "gold" if has_pro(username) else "normal",
-                "messageplate": "tokyo-tower" if user["type"] == "admin" else None,
+                "nameplate": "gold" if has_pro(username) else None,
+                "messageplate": user["equipped_messageplate"] or None,
                 "badges": badges,
                 "type": user["type"],
             }
