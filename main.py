@@ -132,6 +132,7 @@ AUTOMOD_CONFIG = {
 
 # Cosmetics
 COSMETICS = {
+    # Messageplates
     "bamboo-forest": {
         "type": "messageplate",
         "name": "Bamboo Forest",
@@ -173,6 +174,14 @@ COSMETICS = {
         "name": "Tokyo Tower",
         "price": 350,
         "id": "tokyo-tower",
+    },
+    
+    # Nameplates
+    "gold": {
+        "type": "nameplate",
+        "name": "Gold",
+        "price": None,
+        "id": "gold",
     },
 }
 
@@ -788,6 +797,12 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         )
     for pet_id in user["pets"]:
         update_pet(pet_id)
+        
+    if has_pro(username) and "gold" not in user["cosmetics"]:
+        Collections["users"].update_one(
+          {"username": username},
+          {"$push": {"cosmetics": "gold"}},
+        )
 
     remove_companies()
 
@@ -1152,8 +1167,8 @@ def parse_command(username: str, command: str, room_name: str) -> str:
                 "timestamp": time.time(),
                 "badges": badges,
                 "type": user_data["type"],
-                "messageplate": user_data.get("equipped_messageplate"),
-                "nameplate": "gold" if has_pro(sudo_user) else None,
+                "messageplate": user_data.get("equipped_messageplate", None),
+                "nameplate": user_data.get("equipped_nameplate", None),
             }
         )
         return None
@@ -1330,7 +1345,7 @@ def send_message(
                 "username": username,
                 "message": sanitized_message,
                 "timestamp": time.time(),
-                "nameplate": "gold" if has_pro(username) else None,
+                "nameplate": user["equipped_nameplate"] or None,
                 "messageplate": user["equipped_messageplate"] or None,
                 "badges": badges,
                 "type": user["type"],
@@ -3646,6 +3661,9 @@ def buy_cosmetic_endpoint():
 
     cosmetic = COSMETICS[cosmetic_id]
     user = Collections["users"].find_one({"username": request.username})
+    
+    if not cosmetic["price"]:
+      return jsonify({"error": "Cosmetic not for sale", "code": "not-for-sale"}), 400
 
     if not user:
       return jsonify({"error": "User not found", "code": "user-not-found"}), 404
@@ -3690,7 +3708,7 @@ def get_cosmetics_endpoint():
         {"id": cid, **COSMETICS[cid]} for cid in owned_cosmetic_ids if cid in COSMETICS
     ]
     available_cosmetics = [
-        {"id": cid, **COSMETICS[cid]} for cid in COSMETICS if cid not in owned_cosmetics
+        {"id": cid, **COSMETICS[cid]} for cid in COSMETICS if (cid not in owned_cosmetics and COSMETICS[cid]["price"])
     ]
     
     equipped_cosmetics = {
