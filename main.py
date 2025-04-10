@@ -1799,6 +1799,10 @@ def account_endpoint():
             "redeemed_creator_code": user.get("redeemed_creator_code"),
             "creator_code": user.get("creator_code"),
             "plan": get_plan(request.username),
+            "gems": user.get("gems", 0),
+            "cosmetics": user.get("cosmetics", []),
+            "equipped_nameplate": user.get("equipped_nameplate"),
+            "equipped_messageplate": user.get("equipped_messageplate"),
         }
     )
 
@@ -3599,6 +3603,36 @@ def remove_gems_endpoint():
     )
     return jsonify({"success": True})
   
+@app.route("/api/set_gems", methods=["POST"])
+@requires_admin
+def set_gems_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    gems = data.get("gems")
+
+    if not username or gems is None:
+      return jsonify({"error": "Missing username or gems"}), 400
+
+    if gems != "$INFINITY":
+      try:
+        gems = int(gems)
+        if gems < 0:
+          raise ValueError
+      except ValueError:
+        return jsonify({"error": "Invalid gems value"}), 400
+
+    user = Collections["users"].find_one({"username": username})
+    if not user:
+      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    Collections["users"].update_one({"username": username}, {"$set": {"gems": gems}})
+    send_discord_notification(
+      "Gems Set",
+      f"Admin {request.username} set {username}'s gems to {gems}",
+      0x00FF00,
+    )
+    return jsonify({"success": True})
+  
 @app.route("/api/buy_cosmetic", methods=["POST"])
 @requires_unbanned
 def buy_cosmetic_endpoint():
@@ -3614,8 +3648,9 @@ def buy_cosmetic_endpoint():
     if not user:
       return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
-    if user["gems"] < cosmetic["price"]:
-      return jsonify({"error": "Not enough gems", "code": "not-enough-gems"}), 402
+    if user["gems"] != "$INFINITY":
+      if user["gems"] < cosmetic["price"]:
+        return jsonify({"error": "Not enough gems", "code": "not-enough-gems"}), 402
 
     if "cosmetics" in user and cosmetic_id in user["cosmetics"]:
       return jsonify({"error": "Cosmetic already owned", "code": "already-owned"}), 400
