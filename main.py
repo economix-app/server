@@ -3678,12 +3678,20 @@ def get_cosmetics_endpoint():
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
-    owned_cosmetics = user.get("cosmetics", [])
+    owned_cosmetic_ids = user.get("cosmetics", [])
+    owned_cosmetics = [
+        {"id": cid, **COSMETICS[cid]} for cid in owned_cosmetic_ids if cid in COSMETICS
+    ]
     available_cosmetics = [
         {"id": cid, **COSMETICS[cid]} for cid in COSMETICS if cid not in owned_cosmetics
     ]
+    
+    equipped_cosmetics = {
+        "messageplate": COSMETICS.get(user.get("equipped_messageplate")),
+        "nameplate": COSMETICS.get(user.get("equipped_nameplate")),
+    }
 
-    return jsonify({"owned_cosmetics": owned_cosmetics, "available_cosmetics": available_cosmetics})
+    return jsonify({"owned_cosmetics": owned_cosmetics, "available_cosmetics": available_cosmetics, "equipped_cosmetics": equipped_cosmetics})
   
 @app.route("/api/equip_cosmetic", methods=["POST"])
 @requires_unbanned
