@@ -130,6 +130,52 @@ AUTOMOD_CONFIG = {
     "EXPLOIT_DETECTION_THRESHOLD": 3,  # Max suspicious actions in the time window
 }
 
+# Cosmetics
+COSMETICS = {
+    "bamboo-forest": {
+        "type": "messageplate",
+        "name": "Bamboo Forest",
+        "price": 350,
+        "id": "bamboo-forest",
+    },
+    "bonzai-bliss": {
+        "type": "messageplate",
+        "name": "Bonzai Bliss",
+        "price": 350,
+        "id": "bonzai-bliss",
+    },
+    "cherry-blossom": {
+        "type": "messageplate",
+        "name": "Cherry Blossom",
+        "price": 350,
+        "id": "cherry-blossom",
+    },
+    "full-moon": {
+        "type": "messageplate",
+        "name": "Full Moon",
+        "price": 350,
+        "id": "full-moon",
+    },
+    "lantern-festival": {
+        "type": "messageplate",
+        "name": "Lantern Festival",
+        "price": 350,
+        "id": "lantern-festival",
+    },
+    "starry-night": {
+        "type": "messageplate",
+        "name": "Starry Night",
+        "price": 350,
+        "id": "starry-night",
+    },
+    "tokyo-tower": {
+        "type": "messageplate",
+        "name": "Tokyo Tower",
+        "price": 350,
+        "id": "tokyo-tower",
+    },
+}
+
 
 @app.errorhandler(500)
 def internal_server_error(error):
@@ -700,6 +746,7 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         "override_plan_expires": None,
         "redeemed_creator_code": False,
         "creator_code": None,
+        "gems": 0,
     }
     updates = {k: v for k, v in defaults.items() if k not in user}
     if updates:
@@ -945,6 +992,10 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
             "override_plan_expires": None,
             "redeemed_creator_code": False,
             "creator_code": None,
+            "gems": 0,
+            "cosmetics": [],
+            "equipped_messageplate": None,
+            "equipped_nameplate": None,
         }
         Collections["users"].insert_one(user_data)
         Collections["account_creation_attempts"].insert_one(
@@ -3485,3 +3536,155 @@ def get_user_data_endpoint():
     }
 
     return jsonify({"success": True, "user_data": user_data})
+
+@app.route("/api/add_gems", methods=["POST"])
+@requires_admin
+def add_gems_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    gems = data.get("gems")
+
+    if not username or gems is None:
+      return jsonify({"error": "Missing username or gems"}), 400
+
+    try:
+      gems = int(gems)
+      if gems <= 0:
+        raise ValueError
+    except ValueError:
+      return jsonify({"error": "Invalid gems value"}), 400
+
+    user = Collections["users"].find_one({"username": username})
+    if not user:
+      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    Collections["users"].update_one({"username": username}, {"$inc": {"gems": gems}})
+    send_discord_notification(
+      "Gems Added",
+      f"Admin {request.username} added {gems} gems to {username}",
+      0x00FF00,
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/remove_gems", methods=["POST"])
+@requires_admin
+def remove_gems_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    gems = data.get("gems")
+
+    if not username or gems is None:
+      return jsonify({"error": "Missing username or gems"}), 400
+
+    try:
+      gems = int(gems)
+      if gems <= 0:
+        raise ValueError
+    except ValueError:
+      return jsonify({"error": "Invalid gems value"}), 400
+
+    user = Collections["users"].find_one({"username": username})
+    if not user:
+      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    if user.get("gems", 0) < gems:
+      return jsonify({"error": "Not enough gems to remove"}), 400
+
+    Collections["users"].update_one({"username": username}, {"$inc": {"gems": -gems}})
+    send_discord_notification(
+        "Gems Removed",
+        f"Admin {request.username} removed {gems} gems from {username}",
+        0xFF0000,
+    )
+    return jsonify({"success": True})
+  
+@app.route("/api/buy_cosmetic", methods=["POST"])
+@requires_unbanned
+def buy_cosmetic_endpoint():
+    data = request.get_json()
+    cosmetic_id = data.get("cosmetic_id")
+
+    if not cosmetic_id or cosmetic_id not in COSMETICS:
+      return jsonify({"error": "Invalid cosmetic ID", "code": "invalid-cosmetic-id"}), 400
+
+    cosmetic = COSMETICS[cosmetic_id]
+    user = Collections["users"].find_one({"username": request.username})
+
+    if not user:
+      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    if user["gems"] < cosmetic["price"]:
+      return jsonify({"error": "Not enough gems", "code": "not-enough-gems"}), 402
+
+    if "cosmetics" in user and cosmetic_id in user["cosmetics"]:
+      return jsonify({"error": "Cosmetic already owned", "code": "already-owned"}), 400
+
+    Collections["users"].update_one(
+      {"username": request.username},
+      {
+        "$inc": {"gems": -cosmetic["price"]},
+        "$addToSet": {"cosmetics": cosmetic_id},
+      },
+    )
+
+    send_discord_notification(
+      "Cosmetic Purchased",
+      f"User {request.username} purchased cosmetic: {cosmetic['name']} for {cosmetic['price']} gems",
+      0x00FF00,
+    )
+
+    return jsonify({"success": True, "cosmetic": cosmetic})
+  
+@app.route("/api/get_cosmetics", methods=["GET"])
+@requires_unbanned
+def get_cosmetics_endpoint():
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    owned_cosmetics = user.get("cosmetics", [])
+    available_cosmetics = [
+        {"id": cid, **COSMETICS[cid]} for cid in COSMETICS if cid not in owned_cosmetics
+    ]
+
+    return jsonify({"owned_cosmetics": owned_cosmetics, "available_cosmetics": available_cosmetics})
+  
+@app.route("/api/equip_cosmetic", methods=["POST"])
+@requires_unbanned
+def equip_cosmetic_endpoint():
+    data = request.get_json()
+    cosmetic_id = data.get("cosmetic_id")
+
+    if not cosmetic_id:
+        return jsonify({"error": "Missing cosmetic ID", "code": "missing-parameters"}), 400
+
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    if cosmetic_id not in COSMETICS:
+        return jsonify({"error": "Invalid cosmetic ID", "code": "invalid-cosmetic-id"}), 400
+
+    if cosmetic_id not in user.get("cosmetics", []):
+        return jsonify({"error": "Cosmetic not owned", "code": "not-owned"}), 400
+
+    cosmetic = COSMETICS[cosmetic_id]
+    if cosmetic["type"] == "messageplate":
+        Collections["users"].update_one(
+            {"username": request.username},
+            {"$set": {"equipped_messageplate": cosmetic_id}},
+        )
+    elif cosmetic["type"] == "nameplate":
+        Collections["users"].update_one(
+            {"username": request.username},
+            {"$set": {"equipped_nameplate": cosmetic_id}},
+        )
+
+    send_discord_notification(
+        "Cosmetic Equipped",
+        f"User {request.username} equipped cosmetic: {cosmetic['name']} ({cosmetic['type']})",
+        0x00FF00,
+    )
+
+    return jsonify({"success": True, "equipped_cosmetic": cosmetic_id})
