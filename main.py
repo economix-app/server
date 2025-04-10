@@ -3693,7 +3693,7 @@ def get_cosmetics_endpoint():
         "nameplate": COSMETICS.get(user.get("equipped_nameplate")),
     }
 
-    return jsonify({"owned_cosmetics": owned_cosmetics, "available_cosmetics": available_cosmetics, "equipped_cosmetics": equipped_cosmetics})
+    return jsonify({"owned": owned_cosmetics, "cosmetics": available_cosmetics, "equipped": equipped_cosmetics})
   
 @app.route("/api/equip_cosmetic", methods=["POST"])
 @requires_unbanned
