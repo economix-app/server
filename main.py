@@ -756,6 +756,9 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         "redeemed_creator_code": False,
         "creator_code": None,
         "gems": 0,
+        "cosmetics": [],
+        "equipped_nameplate": None,
+        "equipped_messageplate": None,
     }
     updates = {k: v for k, v in defaults.items() if k not in user}
     if updates:
@@ -1345,8 +1348,8 @@ def send_message(
                 "username": username,
                 "message": sanitized_message,
                 "timestamp": time.time(),
-                "nameplate": user["equipped_nameplate"] or None,
-                "messageplate": user["equipped_messageplate"] or None,
+                "nameplate": user.get("equipped_nameplate", None),
+                "messageplate": user.get("equipped_messageplate", None),
                 "badges": badges,
                 "type": user["type"],
             }
