@@ -3660,10 +3660,15 @@ def buy_cosmetic_endpoint():
     Collections["users"].update_one(
       {"username": request.username},
       {
-        "$inc": {"gems": -cosmetic["price"]},
         "$addToSet": {"cosmetics": cosmetic_id},
       },
     )
+    
+    if user["gems"] != "$INFINITY":
+      Collections["users"].update_one(
+        {"username": request.username},
+        {"$inc": {"gems": -cosmetic["price"]}},
+      )
 
     send_discord_notification(
       "Cosmetic Purchased",
