@@ -105,7 +105,6 @@ Collections = {
     "auctions": db.auctions,
     "trades": db.trades,
     "reports": db.reports,
-    "dms": db.dms,
 }
 
 # AutoMod Configuration
@@ -300,7 +299,6 @@ def create_indexes():
         [("offerOwner", ASCENDING), ("requestOwner", ASCENDING)]
     )
     Collections["reports"].create_index([("id", ASCENDING)], unique=True)
-    Collections["dms"].create_index([("conversation_id", ASCENDING)])
 
 
 create_indexes()
@@ -3785,130 +3783,3 @@ def equip_cosmetic_endpoint():
     )
 
     return jsonify({"success": True, "equipped_cosmetic": cosmetic_id})
-
-
-@app.route("/api/send_friend_request", methods=["POST"])
-@requires_unbanned
-def send_friend_request():
-    data = request.get_json()
-    username = data.get("username")
-    if not username:
-        return jsonify({"error": "Missing username"}), 400
-
-    target_user = Collections["users"].find_one({"username": username})
-    if not target_user:
-        return jsonify({"error": "User not found"}), 404
-
-    user = Collections["users"].find_one({"username": request.username})
-    if not user:
-        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-      
-    if username in user.get("friends", []):
-        return jsonify({"error": "Already friends"}), 400
-
-    Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"friend_requests": request.username}}
-    )
-    return jsonify({"success": True})
-
-
-@app.route("/api/accept_friend_request", methods=["POST"])
-@requires_unbanned
-def accept_friend_request():
-    data = request.get_json()
-    username = data.get("username")
-    if not username:
-        return jsonify({"error": "Missing username"}), 400
-      
-    user = Collections["users"].find_one({"username": request.username})
-    if not user:
-        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-      
-    if username not in user.get("friend_requests", []):
-        return jsonify({"error": "No friend request from this user"}), 400
-
-    Collections["users"].update_one(
-        {"username": request.username},
-        {"$pull": {"friend_requests": username}, "$addToSet": {"friends": username}},
-    )
-    Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"friends": request.username}}
-    )
-    return jsonify({"success": True})
-
-
-@app.route("/api/decline_friend_request", methods=["POST"])
-@requires_unbanned
-def decline_friend_request():
-    data = request.get_json()
-    username = data.get("username")
-    if not username:
-        return jsonify({"error": "Missing username"}), 400
-
-    Collections["users"].update_one(
-        {"username": request.username}, {"$pull": {"friend_requests": username}}
-    )
-    return jsonify({"success": True})
-
-
-@app.route("/api/friends", methods=["GET"])
-@requires_unbanned
-def get_friends():
-    user = Collections["users"].find_one({"username": request.username})
-    return jsonify(
-        {
-            "friends": user.get("friends", []),
-            "friendRequests": user.get("friend_requests", []),
-        }
-    )
-
-
-@app.route("/api/send_message_to_friend", methods=["POST"])
-@requires_unbanned
-def send_message_to_friend():
-    data = request.get_json()
-    friend = data.get("friend")
-    message = data.get("message")
-
-    if not friend or not message:
-        return jsonify({"error": "Missing parameters"}), 400
-
-    user = Collections["users"].find_one({"username": request.username})
-    if not user:
-        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-      
-    if friend not in user.get("friends", []):
-        return jsonify({"error": "Not friends with this user"}), 403
-
-    conversation_id = get_conversation_id(request.username, friend)
-    Collections["dms"].insert_one(
-        {
-            "conversation_id": conversation_id,
-            "sender": request.username,
-            "receiver": friend,
-            "content": message,
-            "timestamp": int(time.time()),
-        }
-    )
-    return jsonify({"success": True})
-
-
-@app.route("/api/get_messages_with_friend", methods=["GET"])
-@requires_unbanned
-def get_messages_with_friend():
-    friend = request.args.get("friend")
-    if not friend:
-        return jsonify({"error": "Missing friend parameter"}), 400
-    
-    user = Collections["users"].find_one({"username": request.username})
-    if not user:
-        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-      
-    if friend not in user.get("friends", []):
-        return jsonify({"error": "Not friends with this user"}), 403
-
-    conversation_id = get_conversation_id(request.username, friend)
-    messages = list(
-        Collections["dms"].find({"conversation_id": conversation_id}, {"_id": 0})
-    )
-    return jsonify({"messages": messages})
