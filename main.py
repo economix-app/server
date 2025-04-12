@@ -105,6 +105,7 @@ Collections = {
     "auctions": db.auctions,
     "trades": db.trades,
     "reports": db.reports,
+    "dms": db.dms,
 }
 
 # AutoMod Configuration
@@ -175,7 +176,6 @@ COSMETICS = {
         "price": 35,
         "id": "tokyo-tower",
     },
-    
     # Nameplates
     "gold": {
         "type": "nameplate",
@@ -300,6 +300,7 @@ def create_indexes():
         [("offerOwner", ASCENDING), ("requestOwner", ASCENDING)]
     )
     Collections["reports"].create_index([("id", ASCENDING)], unique=True)
+    Collections["dms"].create_index([("conversation_id", ASCENDING)])
 
 
 create_indexes()
@@ -800,11 +801,11 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         )
     for pet_id in user["pets"]:
         update_pet(pet_id)
-        
+
     if has_pro(username) and "gold" not in user["cosmetics"]:
         Collections["users"].update_one(
-          {"username": username},
-          {"$push": {"cosmetics": "gold"}},
+            {"username": username},
+            {"$push": {"cosmetics": "gold"}},
         )
 
     remove_companies()
@@ -3561,6 +3562,7 @@ def get_user_data_endpoint():
 
     return jsonify({"success": True, "user_data": user_data})
 
+
 @app.route("/api/add_gems", methods=["POST"])
 @requires_admin
 def add_gems_endpoint():
@@ -3569,24 +3571,24 @@ def add_gems_endpoint():
     gems = data.get("gems")
 
     if not username or gems is None:
-      return jsonify({"error": "Missing username or gems"}), 400
+        return jsonify({"error": "Missing username or gems"}), 400
 
     try:
-      gems = int(gems)
-      if gems <= 0:
-        raise ValueError
+        gems = int(gems)
+        if gems <= 0:
+            raise ValueError
     except ValueError:
-      return jsonify({"error": "Invalid gems value"}), 400
+        return jsonify({"error": "Invalid gems value"}), 400
 
     user = Collections["users"].find_one({"username": username})
     if not user:
-      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one({"username": username}, {"$inc": {"gems": gems}})
     send_discord_notification(
-      "Gems Added",
-      f"Admin {request.username} added {gems} gems to {username}",
-      0x00FF00,
+        "Gems Added",
+        f"Admin {request.username} added {gems} gems to {username}",
+        0x00FF00,
     )
     return jsonify({"success": True})
 
@@ -3599,21 +3601,21 @@ def remove_gems_endpoint():
     gems = data.get("gems")
 
     if not username or gems is None:
-      return jsonify({"error": "Missing username or gems"}), 400
+        return jsonify({"error": "Missing username or gems"}), 400
 
     try:
-      gems = int(gems)
-      if gems <= 0:
-        raise ValueError
+        gems = int(gems)
+        if gems <= 0:
+            raise ValueError
     except ValueError:
-      return jsonify({"error": "Invalid gems value"}), 400
+        return jsonify({"error": "Invalid gems value"}), 400
 
     user = Collections["users"].find_one({"username": username})
     if not user:
-      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     if user.get("gems", 0) < gems:
-      return jsonify({"error": "Not enough gems to remove"}), 400
+        return jsonify({"error": "Not enough gems to remove"}), 400
 
     Collections["users"].update_one({"username": username}, {"$inc": {"gems": -gems}})
     send_discord_notification(
@@ -3622,7 +3624,8 @@ def remove_gems_endpoint():
         0xFF0000,
     )
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/set_gems", methods=["POST"])
 @requires_admin
 def set_gems_endpoint():
@@ -3631,28 +3634,29 @@ def set_gems_endpoint():
     gems = data.get("gems")
 
     if not username or gems is None:
-      return jsonify({"error": "Missing username or gems"}), 400
+        return jsonify({"error": "Missing username or gems"}), 400
 
     if gems != "$INFINITY":
-      try:
-        gems = int(gems)
-        if gems < 0:
-          raise ValueError
-      except ValueError:
-        return jsonify({"error": "Invalid gems value"}), 400
+        try:
+            gems = int(gems)
+            if gems < 0:
+                raise ValueError
+        except ValueError:
+            return jsonify({"error": "Invalid gems value"}), 400
 
     user = Collections["users"].find_one({"username": username})
     if not user:
-      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one({"username": username}, {"$set": {"gems": gems}})
     send_discord_notification(
-      "Gems Set",
-      f"Admin {request.username} set {username}'s gems to {gems}",
-      0x00FF00,
+        "Gems Set",
+        f"Admin {request.username} set {username}'s gems to {gems}",
+        0x00FF00,
     )
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/buy_cosmetic", methods=["POST"])
 @requires_unbanned
 def buy_cosmetic_endpoint():
@@ -3660,45 +3664,52 @@ def buy_cosmetic_endpoint():
     cosmetic_id = data.get("cosmetic_id")
 
     if not cosmetic_id or cosmetic_id not in COSMETICS:
-      return jsonify({"error": "Invalid cosmetic ID", "code": "invalid-cosmetic-id"}), 400
+        return (
+            jsonify({"error": "Invalid cosmetic ID", "code": "invalid-cosmetic-id"}),
+            400,
+        )
 
     cosmetic = COSMETICS[cosmetic_id]
     user = Collections["users"].find_one({"username": request.username})
-    
+
     if not cosmetic["price"]:
-      return jsonify({"error": "Cosmetic not for sale", "code": "not-for-sale"}), 400
+        return jsonify({"error": "Cosmetic not for sale", "code": "not-for-sale"}), 400
 
     if not user:
-      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     if user["gems"] != "$INFINITY":
-      if user["gems"] < cosmetic["price"]:
-        return jsonify({"error": "Not enough gems", "code": "not-enough-gems"}), 402
+        if user["gems"] < cosmetic["price"]:
+            return jsonify({"error": "Not enough gems", "code": "not-enough-gems"}), 402
 
     if "cosmetics" in user and cosmetic_id in user["cosmetics"]:
-      return jsonify({"error": "Cosmetic already owned", "code": "already-owned"}), 400
+        return (
+            jsonify({"error": "Cosmetic already owned", "code": "already-owned"}),
+            400,
+        )
 
     Collections["users"].update_one(
-      {"username": request.username},
-      {
-        "$addToSet": {"cosmetics": cosmetic_id},
-      },
-    )
-    
-    if user["gems"] != "$INFINITY":
-      Collections["users"].update_one(
         {"username": request.username},
-        {"$inc": {"gems": -cosmetic["price"]}},
-      )
+        {
+            "$addToSet": {"cosmetics": cosmetic_id},
+        },
+    )
+
+    if user["gems"] != "$INFINITY":
+        Collections["users"].update_one(
+            {"username": request.username},
+            {"$inc": {"gems": -cosmetic["price"]}},
+        )
 
     send_discord_notification(
-      "Cosmetic Purchased",
-      f"User {request.username} purchased cosmetic: {cosmetic['name']} for {cosmetic['price']} gems",
-      0x00FF00,
+        "Cosmetic Purchased",
+        f"User {request.username} purchased cosmetic: {cosmetic['name']} for {cosmetic['price']} gems",
+        0x00FF00,
     )
 
     return jsonify({"success": True, "cosmetic": cosmetic})
-  
+
+
 @app.route("/api/get_cosmetics", methods=["GET"])
 @requires_unbanned
 def get_cosmetics_endpoint():
@@ -3711,16 +3722,25 @@ def get_cosmetics_endpoint():
         {"id": cid, **COSMETICS[cid]} for cid in owned_cosmetic_ids if cid in COSMETICS
     ]
     available_cosmetics = [
-        {"id": cid, **COSMETICS[cid]} for cid in COSMETICS if (cid not in owned_cosmetics and COSMETICS[cid]["price"])
+        {"id": cid, **COSMETICS[cid]}
+        for cid in COSMETICS
+        if (cid not in owned_cosmetics and COSMETICS[cid]["price"])
     ]
-    
+
     equipped_cosmetics = {
         "messageplate": COSMETICS.get(user.get("equipped_messageplate")),
         "nameplate": COSMETICS.get(user.get("equipped_nameplate")),
     }
 
-    return jsonify({"owned": owned_cosmetics, "cosmetics": available_cosmetics, "equipped": equipped_cosmetics})
-  
+    return jsonify(
+        {
+            "owned": owned_cosmetics,
+            "cosmetics": available_cosmetics,
+            "equipped": equipped_cosmetics,
+        }
+    )
+
+
 @app.route("/api/equip_cosmetic", methods=["POST"])
 @requires_unbanned
 def equip_cosmetic_endpoint():
@@ -3728,14 +3748,20 @@ def equip_cosmetic_endpoint():
     cosmetic_id = data.get("cosmetic_id")
 
     if not cosmetic_id:
-        return jsonify({"error": "Missing cosmetic ID", "code": "missing-parameters"}), 400
+        return (
+            jsonify({"error": "Missing cosmetic ID", "code": "missing-parameters"}),
+            400,
+        )
 
     user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     if cosmetic_id not in COSMETICS:
-        return jsonify({"error": "Invalid cosmetic ID", "code": "invalid-cosmetic-id"}), 400
+        return (
+            jsonify({"error": "Invalid cosmetic ID", "code": "invalid-cosmetic-id"}),
+            400,
+        )
 
     if cosmetic_id not in user.get("cosmetics", []):
         return jsonify({"error": "Cosmetic not owned", "code": "not-owned"}), 400
@@ -3759,3 +3785,114 @@ def equip_cosmetic_endpoint():
     )
 
     return jsonify({"success": True, "equipped_cosmetic": cosmetic_id})
+
+
+@app.route("/api/send_friend_request", methods=["POST"])
+@requires_unbanned
+def send_friend_request():
+    data = request.get_json()
+    username = data.get("username")
+    if not username:
+        return jsonify({"error": "Missing username"}), 400
+
+    target_user = Collections["users"].find_one({"username": username})
+    if not target_user:
+        return jsonify({"error": "User not found"}), 404
+
+    if username in request.user.get("friends", []):
+        return jsonify({"error": "Already friends"}), 400
+
+    Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"friend_requests": request.username}}
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/accept_friend_request", methods=["POST"])
+@requires_unbanned
+def accept_friend_request():
+    data = request.get_json()
+    username = data.get("username")
+    if not username:
+        return jsonify({"error": "Missing username"}), 400
+
+    if username not in request.user.get("friend_requests", []):
+        return jsonify({"error": "No friend request from this user"}), 400
+
+    Collections["users"].update_one(
+        {"username": request.username},
+        {"$pull": {"friend_requests": username}, "$addToSet": {"friends": username}},
+    )
+    Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"friends": request.username}}
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/decline_friend_request", methods=["POST"])
+@requires_unbanned
+def decline_friend_request():
+    data = request.get_json()
+    username = data.get("username")
+    if not username:
+        return jsonify({"error": "Missing username"}), 400
+
+    Collections["users"].update_one(
+        {"username": request.username}, {"$pull": {"friend_requests": username}}
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/friends", methods=["GET"])
+@requires_unbanned
+def get_friends():
+    user = Collections["users"].find_one({"username": request.username})
+    return jsonify(
+        {
+            "friends": user.get("friends", []),
+            "friendRequests": user.get("friend_requests", []),
+        }
+    )
+
+
+@app.route("/api/send_message_to_friend", methods=["POST"])
+@requires_unbanned
+def send_message_to_friend():
+    data = request.get_json()
+    friend = data.get("friend")
+    message = data.get("message")
+
+    if not friend or not message:
+        return jsonify({"error": "Missing parameters"}), 400
+
+    if friend not in request.user.get("friends", []):
+        return jsonify({"error": "Not friends with this user"}), 403
+
+    conversation_id = get_conversation_id(request.username, friend)
+    Collections["dms"].insert_one(
+        {
+            "conversation_id": conversation_id,
+            "sender": request.username,
+            "receiver": friend,
+            "content": message,
+            "timestamp": int(time.time()),
+        }
+    )
+    return jsonify({"success": True})
+
+
+@app.route("/api/get_messages_with_friend", methods=["GET"])
+@requires_unbanned
+def get_messages_with_friend():
+    friend = request.args.get("friend")
+    if not friend:
+        return jsonify({"error": "Missing friend parameter"}), 400
+
+    if friend not in request.user.get("friends", []):
+        return jsonify({"error": "Not friends with this user"}), 403
+
+    conversation_id = get_conversation_id(request.username, friend)
+    messages = list(
+        Collections["dms"].find({"conversation_id": conversation_id}, {"_id": 0})
+    )
+    return jsonify({"messages": messages})
