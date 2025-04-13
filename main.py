@@ -596,6 +596,7 @@ def authenticate_user():
         "login_endpoint",
         "index",
         "stats_endpoint",
+        "stripe_webhook"
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
         return
