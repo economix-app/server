@@ -26,6 +26,7 @@ import requests
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import stripe
 
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
@@ -56,6 +57,13 @@ app.logger.setLevel(logging.INFO)
 log_file = open("app.log", "r")
 log_file.seek(0, 2)  # Seek to the end of the file
 active_queues = set()  # Track active SSE connections
+
+# Stripe configuration
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY")
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
+
+stripe.api_key = STRIPE_SECRET_KEY
 
 
 class LogHandler(FileSystemEventHandler):
@@ -199,7 +207,6 @@ COSMETICS = {
         "price": 35,
         "id": "lightning-storm",
     },
-    
     # Nameplates
     "gold": {
         "type": "nameplate",
@@ -783,6 +790,7 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         "cosmetics": [],
         "equipped_nameplate": None,
         "equipped_messageplate": None,
+        "subscriptions": [],
     }
     updates = {k: v for k, v in defaults.items() if k not in user}
     if updates:
@@ -1038,6 +1046,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
             "cosmetics": [],
             "equipped_messageplate": None,
             "equipped_nameplate": None,
+            "subscriptions": [],
         }
         Collections["users"].insert_one(user_data)
         Collections["account_creation_attempts"].insert_one(
@@ -3808,3 +3817,107 @@ def equip_cosmetic_endpoint():
     )
 
     return jsonify({"success": True, "equipped_cosmetic": cosmetic_id})
+
+
+@app.route("/stripe_webhook", methods=["POST"])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get("Stripe-Signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        return jsonify({"error": "Invalid payload"}), 400
+    except stripe.error.SignatureVerificationError as e:
+        return jsonify({"error": "Invalid signature"}), 400
+
+    # Handle subscription events
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        username = session["metadata"]["username"]
+        subscription_id = session.get("subscription")
+
+        if subscription_id:
+            subscription = stripe.Subscription.retrieve(subscription_id)
+            price = stripe.Price.retrieve(
+                subscription["items"]["data"][0]["price"]["id"]
+            )
+            product = stripe.Product.retrieve(price["product"])
+
+            price_lookup_key = price.lookup_key
+
+            if price_lookup_key == "pro_monthly":
+                plan = "pro"
+            elif price_lookup_key == "pro_yearly":
+                plan = "pro"
+            elif price_lookup_key == "proplus_monthly":
+                plan = "proplus"
+            elif price_lookup_key == "proplus_yearly":
+                plan = "proplus"
+
+            Collections["users"].update_one(
+                {"username": username},
+                {
+                    "$push": {
+                        "subscriptions": {
+                            "subscription_id": subscription_id,
+                            "price_id": price["id"],
+                            "product": product["name"],
+                            "interval": price["recurring"]["interval"],
+                            "status": subscription["status"],
+                            "current_period_end": subscription["current_period_end"],
+                            "plan": plan,
+                        }
+                    }
+                },
+            )
+
+            send_discord_notification(
+                f"New Subscription",
+                f"{username} has subscribed to the {plan} plan",
+            )
+        else:
+            # Handle one-time gem purchases
+            price_id = session["metadata"]["price_id"]
+            price = stripe.Price.retrieve(price_id)
+            price_lookup_key = price.lookup_key
+            
+            if price_lookup_key == "500_gems":
+                gems = 500
+            elif price_lookup_key == "1000_gems":
+                gems = 1000
+            elif price_lookup_key == "2500_gems":
+                gems = 2500
+            elif price_lookup_key == "5000_gems":
+                gems = 5000
+
+            Collections["users"].update_one(
+                {"username": username},
+                {"$inc": {"gems": gems}},
+            )
+
+            send_discord_notification(
+                f"Gem Purchase",
+                f"{username} purchased {gems} gems.",
+            )
+
+    elif event["type"] in [
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+    ]:
+        subscription = event["data"]["object"]
+        Collections["users"].update_one(
+            {"subscriptions.subscription_id": subscription["id"]},
+            {
+                "$set": {
+                    "subscriptions.$.status": subscription["status"],
+                    "subscriptions.$.current_period_end": subscription[
+                        "current_period_end"
+                    ],
+                }
+            },
+        )
+
+    return jsonify({"success": True}), 200
