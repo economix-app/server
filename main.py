@@ -65,6 +65,18 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
+PRICE_IDS = {
+    "gems_500": "price_1RDKn6DOJm6z6Mj6ZUUdJV5j",
+    "gems_1000": "price_1RDKnfDOJm6z6Mj61nxE69Fd",
+    "gems_2500": "price_1RDKoCDOJm6z6Mj6TYoqrNAf",
+    "gems_5000": "price_1RDKojDOJm6z6Mj6kG1LiidX",
+    
+    "pro_monthly": "price_1R5f6MDOJm6z6Mj6KHCNb49F",
+    "pro_yearly": "price_1R5fCwDOJm6z6Mj659CUm8K7",
+    "pro_plus_monthly": "price_1R5f9WDOJm6z6Mj61WRCGsja",
+    "pro_plus_yearly": "price_1R5fBxDOJm6z6Mj6g6A5v5bZ",
+}
+
 
 class LogHandler(FileSystemEventHandler):
     """Handle log file events detected by watchdog."""
@@ -3804,34 +3816,32 @@ def stripe_webhook():
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
-    except ValueError as e:
+    except ValueError:
         return jsonify({"error": "Invalid payload"}), 400
-    except stripe.error.SignatureVerificationError as e:
+    except stripe.error.SignatureVerificationError:
         return jsonify({"error": "Invalid signature"}), 400
 
-    # Handle subscription events
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        username = session["metadata"]["username"]
+        username = session["metadata"].get("username")
+        item_key = session["metadata"].get("item")
         subscription_id = session.get("subscription")
 
+        if not username or not item_key:
+            return jsonify({"error": "Missing metadata"}), 400
+
         if subscription_id:
+            # Subscription-based purchase
             subscription = stripe.Subscription.retrieve(subscription_id)
-            price = stripe.Price.retrieve(
-                subscription["items"]["data"][0]["price"]["id"]
-            )
+            price = stripe.Price.retrieve(subscription["items"]["data"][0]["price"]["id"])
             product = stripe.Product.retrieve(price["product"])
 
-            price_lookup_key = price.lookup_key
-
-            if price_lookup_key == "pro_monthly":
-                plan = "pro"
-            elif price_lookup_key == "pro_yearly":
-                plan = "pro"
-            elif price_lookup_key == "proplus_monthly":
+            if "pro_plus" in item_key:
                 plan = "proplus"
-            elif price_lookup_key == "proplus_yearly":
-                plan = "proplus"
+            elif "pro" in item_key:
+                plan = "pro"
+            else:
+                plan = "unknown"
 
             Collections["users"].update_one(
                 {"username": username},
@@ -3851,23 +3861,23 @@ def stripe_webhook():
             )
 
             send_discord_notification(
-                f"New Subscription",
-                f"{username} has subscribed to the {plan} plan",
+                "New Subscription",
+                f"{username} subscribed to {plan} ({price['recurring']['interval']})"
             )
+
         else:
-            # Handle one-time gem purchases
-            price_id = session["metadata"]["price_id"]
-            price = stripe.Price.retrieve(price_id)
-            price_lookup_key = price.lookup_key
-            
-            if price_lookup_key == "500_gems":
-                gems = 500
-            elif price_lookup_key == "1000_gems":
-                gems = 1000
-            elif price_lookup_key == "2500_gems":
-                gems = 2500
-            elif price_lookup_key == "5000_gems":
-                gems = 5000
+            # One-time gem purchase
+            gems_lookup = {
+                "gems_500": 500,
+                "gems_1000": 1000,
+                "gems_2500": 2500,
+                "gems_5000": 5000,
+            }
+
+            gems = gems_lookup.get(item_key)
+
+            if not gems:
+                return jsonify({"error": "Unknown gem pack"}), 400
 
             Collections["users"].update_one(
                 {"username": username},
@@ -3875,25 +3885,50 @@ def stripe_webhook():
             )
 
             send_discord_notification(
-                f"Gem Purchase",
+                "Gem Purchase",
                 f"{username} purchased {gems} gems.",
             )
 
-    elif event["type"] in [
-        "customer.subscription.updated",
-        "customer.subscription.deleted",
-    ]:
+    elif event["type"] in ["customer.subscription.updated", "customer.subscription.deleted"]:
         subscription = event["data"]["object"]
         Collections["users"].update_one(
             {"subscriptions.subscription_id": subscription["id"]},
             {
                 "$set": {
                     "subscriptions.$.status": subscription["status"],
-                    "subscriptions.$.current_period_end": subscription[
-                        "current_period_end"
-                    ],
+                    "subscriptions.$.current_period_end": subscription["current_period_end"],
                 }
             },
         )
 
     return jsonify({"success": True}), 200
+
+
+@app.route("/create_checkout_session", methods=["POST"])
+def create_checkout_session():
+    data = request.get_json()
+
+    item_key = data.get("item")
+    username = data.get("username")
+
+    if item_key not in PRICE_IDS:
+        return jsonify({"error": "Invalid item type"}), 400
+    if not username:
+        return jsonify({"error": "Missing username"}), 400
+
+    price_id = PRICE_IDS[item_key]
+    is_subscription = item_key.startswith("pro")
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription" if is_subscription else "payment",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url="https://economix.lol",
+            cancel_url="https://economix.lol",
+            metadata={"username": username, "item": item_key},
+            customer_creation="always"
+        )
+        return jsonify({"url": session.url})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
