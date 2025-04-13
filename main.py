@@ -1227,7 +1227,6 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         <p>/clear_user [username] - Clears all messages from a specific user</p>
         <p>/delete_many [amount] - Deletes specified number of messages</p>
         <p>/ban [username] [duration] [reason] - Bans a user</p>
-        <p>/ban_ip [ip] [duration] [reason] - Bans an IP address</p>
         <p>/unban [username] - Unbans a user</p>
         <p>/sudo [username] [message] - Sends message as user</p>
         <h4>Admin & Mod</h4>
@@ -1236,12 +1235,6 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         <p>/list_banned - Lists banned users</p>
         <p>/help - Shows this help</p>
         """
-    elif cmd == "ban_ip" and len(args) >= 3 and is_admin:
-        ip, duration, *reason = args
-        ban_ip(ip, duration, " ".join(reason))
-        return (
-            f"Banned IP <b>{ip}</b> for <b>{' '.join(reason)}</b> (<b>{duration}</b>)"
-        )
     elif cmd == "msg" and len(args) >= 2:
         recipient = args[0]
         message = " ".join(args[1:])
@@ -1704,25 +1697,6 @@ def delete_message(message_id: str) -> Tuple[dict, int]:
         "Message Deleted",
         f"Mod/Admin {request.username} deleted message {message_id}",
         0xFF0000,
-    )
-    return jsonify({"success": True})
-
-
-def ban_ip(ip: str, length: str, reason: str, subnet: bool = False) -> Tuple[dict, int]:
-    if not re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
-        return jsonify({"error": "Invalid IP address", "code": "invalid-ip"}), 400
-
-    block_ip(ip, length, f"Admin ban: {reason}", subnet)
-    return jsonify({"success": True})
-
-
-def unban_ip(ip: str) -> Tuple[dict, int]:
-    if not re.match(r"^\d+\.\d+\.\d+\.\d+$", ip):
-        return jsonify({"error": "Invalid IP address", "code": "invalid-ip"}), 400
-
-    Collections["blocked_ips"].delete_one({"ip": ip})
-    send_discord_notification(
-        "IP Unbanned", f"Admin {request.username} unbanned IP {ip}", 0xFFA500
     )
     return jsonify({"success": True})
 
@@ -3161,31 +3135,6 @@ def delete_creator_code_endpoint():
 def get_creator_codes_endpoint():
     codes = Collections["creator_codes"].find({}, {"_id": 0})
     return jsonify({"creator_codes": [code for code in codes]})
-
-
-@app.route("/api/ban_ip", methods=["POST"])
-@requires_admin
-def ban_ip_endpoint():
-    data = request.get_json()
-    return ban_ip(
-        data.get("ip"),
-        data.get("length"),
-        data.get("reason"),
-        data.get("subnet", False),
-    )
-
-
-@app.route("/api/unban_ip", methods=["POST"])
-@requires_admin
-def unban_ip_endpoint():
-    data = request.get_json()
-    return unban_ip(data.get("ip"))
-
-
-@app.route("/api/get_banned_ips", methods=["GET"])
-@requires_admin
-def get_banned_ips_endpoint():
-    return get_banned_ips()
 
 
 @app.route("/api/logs", methods=["GET"])
