@@ -1599,7 +1599,7 @@ def ban_user(username: str, length: str, reason: str) -> Tuple[dict, int]:
                 subscription = stripe.Subscription.retrieve(sub["subscription_id"])
                 subscription.delete()
             except stripe.error.StripeError as e:
-                app.logger.error(f"Error processing refund: {str(e)}")
+                app.logger.error(f"Error cancelling subscription: {str(e)}")
 
     end_time = parse_time(length)
     Collections["users"].update_one(
@@ -1902,6 +1902,14 @@ def delete_account_endpoint():
             ),
             403,
         )
+        
+    for sub in user.get("subscriptions", []):
+        if sub["status"] == "active":
+            try:
+                subscription = stripe.Subscription.retrieve(sub["subscription_id"])
+                subscription.delete()
+            except stripe.error.StripeError as e:
+                app.logger.error(f"Error cancelling subscription: {str(e)}")
 
     Collections["items"].delete_many({"owner": request.username})
     Collections["users"].delete_one({"username": request.username})
@@ -3078,6 +3086,17 @@ def delete_user_endpoint():
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
     Collections["items"].delete_many({"owner": username})
     Collections["users"].delete_one({"username": username})
+    Collections["pets"].delete_many({"owner": username})
+    Collections["messages"].delete_many({"username": username})
+    
+    for sub in user.get("subscriptions", []):
+        if sub["status"] == "active":
+            try:
+                subscription = stripe.Subscription.retrieve(sub["subscription_id"])
+                subscription.delete()
+            except stripe.error.StripeError as e:
+                app.logger.error(f"Error cancelling subscription: {str(e)}")
+    
     send_discord_notification(
         "User deleted", f"Admin {request.username} deleted user {username}", 0xFF0000
     )
