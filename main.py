@@ -175,6 +175,31 @@ COSMETICS = {
         "price": 35,
         "id": "tokyo-tower",
     },
+    "sun-rays": {
+        "type": "messageplate",
+        "name": "Sun Rays",
+        "price": 35,
+        "id": "sun-rays",
+    },
+    "planets-align": {
+        "type": "messageplate",
+        "name": "Planets Align",
+        "price": 35,
+        "id": "planets-align",
+    },
+    "cityscape-dreams": {
+        "type": "messageplate",
+        "name": "Cityscape Dreams",
+        "price": 35,
+        "id": "cityscape-dreams",
+    },
+    "lightning-storm": {
+        "type": "messageplate",
+        "name": "Lightning Storm",
+        "price": 35,
+        "id": "lightning-storm",
+    },
+    
     # Nameplates
     "gold": {
         "type": "nameplate",
