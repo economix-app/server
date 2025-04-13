@@ -1592,6 +1592,14 @@ def ban_user(username: str, length: str, reason: str) -> Tuple[dict, int]:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
     if user.get("type") == "admin":
         return jsonify({"error": "Cannot ban admin", "code": "cannot-ban-admin"}), 403
+      
+    for sub in user.get("subscriptions", []):
+        if sub["status"] == "active":
+            try:
+                subscription = stripe.Subscription.retrieve(sub["subscription_id"])
+                subscription.delete()
+            except stripe.error.StripeError as e:
+                app.logger.error(f"Error processing refund: {str(e)}")
 
     end_time = parse_time(length)
     Collections["users"].update_one(
