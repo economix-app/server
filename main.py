@@ -3921,14 +3921,17 @@ def create_checkout_session():
     is_subscription = item_key.startswith("pro")
 
     try:
-        session = stripe.checkout.Session.create(
-            mode="subscription" if is_subscription else "payment",
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url="https://economix.lol",
-            cancel_url="https://economix.lol",
-            metadata={"username": username, "item": item_key},
-            customer_creation="always"
-        )
+        session_params = {
+            "mode": "subscription" if is_subscription else "payment",
+            "line_items": [{"price": price_id, "quantity": 1}],
+            "success_url": "https://economix.lol",
+            "cancel_url": "https://economix.lol",
+            "metadata": {"username": username, "item": item_key},
+        }
+        if not is_subscription:
+            session_params["customer_creation"] = "always"
+
+        session = stripe.checkout.Session.create(**session_params)
         return jsonify({"url": session.url})
 
     except Exception as e:
