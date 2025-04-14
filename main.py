@@ -1845,7 +1845,7 @@ def login_endpoint():
     )
 
 
-@app.route("/api/setup_2fa", methods=["POST"])
+@app.route("/api/setup_2fa", methods=["GET"])
 @requires_unbanned
 def setup_2fa_endpoint():
     user = Collections["users"].find_one({"username": request.username})
