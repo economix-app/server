@@ -5,7 +5,7 @@ import random
 import logging
 from uuid import uuid4
 from threading import Thread
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Callable, List
 import traceback
 import sys
 
@@ -27,6 +27,7 @@ from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import stripe
+import importlib.util
 
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
@@ -748,7 +749,12 @@ def update_item(item_id: str):
         }
         Collections["item_meta"].insert_one(meta)
 
-    updates = {"meta_id": meta_id, "rarity": meta["rarity"], "level": meta["level"], "lore": meta.get("lore", generate_lore(name))}
+    updates = {
+        "meta_id": meta_id,
+        "rarity": meta["rarity"],
+        "level": meta["level"],
+        "lore": meta.get("lore", generate_lore(name)),
+    }
     if "history" not in item:
         updates["history"] = []
     Collections["items"].update_one({"id": item_id}, {"$set": updates})
@@ -957,7 +963,7 @@ def generate_item(owner: str) -> dict:
     meta_id = sha256(
         f"{name['adjective']}{name['material']}{name['noun']}{name['suffix']}".encode()
     ).hexdigest()
-    
+
     lore = generate_lore(name)
 
     meta = Collections["item_meta"].find_one({"id": meta_id})
@@ -1155,6 +1161,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
         send_discord_notification(
             "New user registered", f"Username: {username}\nIP: {ip}"
         )
+        plugin_manager.trigger_hooks("on_user_register", {"username": username, "ip": ip}, {"db": db})
         return jsonify({"success": True}), 201
     except DuplicateKeyError:
         return jsonify({"error": "Username exists", "code": "username-exists"}), 400
@@ -1218,6 +1225,7 @@ def login(
     token = str(uuid4())
     Collections["users"].update_one({"username": username}, {"$set": {"token": token}})
     send_discord_notification("User logged in", f"Username: {username}")
+    plugin_manager.trigger_hooks("on_user_login", {"username": username, "ip": ip}, {"db": db})
     return jsonify({"success": True, "token": token})
 
 
@@ -1988,6 +1996,7 @@ def delete_account_endpoint():
     Collections["items"].delete_many({"owner": request.username})
     Collections["users"].delete_one({"username": request.username})
     send_discord_notification("User deleted", f"Username: {request.username}")
+    plugin_manager.trigger_hooks("on_account_delete", {"username": request.username}, {"db": db})
     return jsonify({"success": True})
 
 
@@ -2049,6 +2058,7 @@ def create_item_endpoint():
         "New Item Created",
         f"User {request.username} created: {item_name} (Rarity: {new_item['rarity']})",
     )
+    plugin_manager.trigger_hooks("on_item_create", {"username": request.username, "item": new_item}, {"db": db})
     return jsonify(
         {k: v for k, v in new_item.items() if k not in ["_id", "item_secret"]}
     )
@@ -2248,6 +2258,7 @@ def mine_tokens_endpoint():
     send_discord_notification(
         "Tokens Mined", f"User {request.username} mined {tokens} tokens"
     )
+    plugin_manager.trigger_hooks("on_tokens_mined", {"username": request.username, "tokens": tokens}, {"db": db})
     return jsonify({"success": True, "tokens": tokens})
 
 
@@ -2421,6 +2432,7 @@ def buy_item_endpoint():
         f"User {request.username} bought {item_name} from {item['owner']} for {item['price']} tokens",
         0x0000FF,
     )
+    plugin_manager.trigger_hooks("on_item_purchase", {"buyer": request.username, "item": item}, {"db": db})
     return jsonify({"success": True})
 
 
@@ -2511,6 +2523,7 @@ def leaderboard_endpoint():
 @requires_unbanned
 def send_message_endpoint():
     data = request.get_json()
+    plugin_manager.trigger_hooks("on_message_send", {"username": request.username, "message": data}, {"db": db, "chat": {"send_message": send_message}})
     return send_message(
         data.get("room", "global"),
         data.get("message"),
@@ -3830,3 +3843,42 @@ def create_checkout_session():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+class Event:
+    def __init__(self, name: str, payload: dict, context: dict):
+        self.name = name
+        self.payload = payload
+        self.context = context
+
+
+class PluginManager:
+    def __init__(self):
+        self.hooks: Dict[str, List[Callable]] = {}
+
+    def register_hook(self, event_name: str, callback: Callable):
+        if event_name not in self.hooks:
+            self.hooks[event_name] = []
+        self.hooks[event_name].append(callback)
+
+    def trigger_hooks(self, event_name: str, payload: dict, context: dict):
+        event = Event(name=event_name, payload=payload, context=context)
+        for callback in self.hooks.get(event_name, []):
+            callback(event)
+
+    def load_plugins(self, plugins_dir: str):
+        for filename in os.listdir(plugins_dir):
+            if filename.endswith(".py"):
+                plugin_path = os.path.join(plugins_dir, filename)
+                spec = importlib.util.spec_from_file_location(
+                    filename[:-3], plugin_path
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                if hasattr(module, "register"):
+                    module.register(self)
+
+
+# Initialize PluginManager and load plugins
+plugin_manager = PluginManager()
+plugin_manager.load_plugins(os.path.join(os.path.dirname(__file__), "plugins"))
