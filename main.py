@@ -3753,7 +3753,8 @@ def create_checkout_session():
         return jsonify({"url": session.url})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Stripe error: {str(e)}")
+        return jsonify({"error": "Stripe error"}), 500
 
 
 class Event:
