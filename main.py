@@ -19,8 +19,6 @@ from pymongo.errors import DuplicateKeyError, PyMongoError
 import re
 import html
 import pyotp
-import qrcode
-import io
 from better_profanity import profanity
 import requests
 from logging.handlers import RotatingFileHandler
@@ -28,6 +26,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import stripe
 import importlib.util
+from datetime import datetime
 
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
@@ -1323,11 +1322,11 @@ def parse_command(username: str, command: str, room_name: str) -> str:
     elif cmd == "list_banned" and is_mod:
         banned = Collections["users"].find({"banned": True})
         banned_list = [
-            f"<b>{u['username']}</b> - {u.get('banned_reason', 'No reason')}"
+            f"<p><b>{u['username']}</b> - Reason: {u.get('banned_reason', 'No reason')} | Until: {u.get("banned_until")} (Zero = Perma)</p>"
             for u in banned
         ]
         return (
-            "Banned users:\n" + "\n".join(banned_list)
+            "Banned users:\n" + "".join(banned_list)
             if banned_list
             else "Nobody is banned."
         )
