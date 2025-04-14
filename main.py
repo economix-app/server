@@ -3854,7 +3854,7 @@ def stripe_webhook():
                             "product": product.name,
                             "interval": price.recurring.interval,
                             "status": subscription.status,
-                            "current_period_end": subscription.current_period_end,
+                            "current_period_end": subscription.get("current_period_end", None),
                             "plan": plan,
                         }
                     }
@@ -3893,11 +3893,11 @@ def stripe_webhook():
     elif event["type"] in ["customer.subscription.updated", "customer.subscription.deleted"]:
         subscription = event["data"]["object"]
         Collections["users"].update_one(
-            {"subscriptions.subscription_id": subscription["id"]},
+            {"subscriptions.subscription_id": subscription.id},
             {
                 "$set": {
-                    "subscriptions.$.status": subscription["status"],
-                    "subscriptions.$.current_period_end": subscription["current_period_end"],
+                    "subscriptions.$.status": subscription.status,
+                    "subscriptions.$.current_period_end": subscription.get("current_period_end", None),
                 }
             },
         )
