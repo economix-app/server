@@ -3850,11 +3850,11 @@ def stripe_webhook():
                     "$push": {
                         "subscriptions": {
                             "subscription_id": subscription_id,
-                            "price_id": price["id"],
-                            "product": product["name"],
-                            "interval": price["recurring"]["interval"],
-                            "status": subscription["status"],
-                            "current_period_end": subscription["current_period_end"],
+                            "price_id": price.id,
+                            "product": product.name,
+                            "interval": price.recurring.interval,
+                            "status": subscription.status,
+                            "current_period_end": subscription.current_period_end,
                             "plan": plan,
                         }
                     }
