@@ -70,7 +70,6 @@ PRICE_IDS = {
     "gems_1000": "price_1RDKnfDOJm6z6Mj61nxE69Fd",
     "gems_2500": "price_1RDKoCDOJm6z6Mj6TYoqrNAf",
     "gems_5000": "price_1RDKojDOJm6z6Mj6kG1LiidX",
-    
     "pro_monthly": "price_1R5f6MDOJm6z6Mj6KHCNb49F",
     "pro_yearly": "price_1R5fCwDOJm6z6Mj659CUm8K7",
     "pro_plus_monthly": "price_1R5f9WDOJm6z6Mj61WRCGsja",
@@ -513,21 +512,27 @@ def requires_pro(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = Collections["users"].find_one({"username": request.username})
-        if user.get("override_plan", "free") not in ["pro", "proplus"]:
+        now = time.time()
+
+        if user.get("override_plan") in ["pro", "proplus"]:
             if (
-                user.get("override_plan_expires")
-                and user["override_plan_expires"] < time.time()
+                user.get("override_plan_expires", 0) == 0
+                or user["override_plan_expires"] > now
             ):
-                return (
-                    jsonify(
-                        {
-                            "error": "Subscription required",
-                            "code": "subscription-required",
-                        }
-                    ),
-                    403,
-                )
-        return f(*args, **kwargs)
+                return f(*args, **kwargs)
+
+        subscriptions = user.get("subscriptions", [])
+        for sub in subscriptions:
+            if sub.get("plan") in ["pro", "proplus"] and sub.get("status") == "active":
+                if sub.get("current_period_end", 0) > now:
+                    return f(*args, **kwargs)
+
+        return (
+            jsonify(
+                {"error": "Subscription required", "code": "subscription-required"}
+            ),
+            403,
+        )
 
     return decorated
 
@@ -536,56 +541,85 @@ def requires_proplus(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = Collections["users"].find_one({"username": request.username})
-        if user.get("override_plan", "free") not in ["proplus"]:
+        now = time.time()
+
+        if user.get("override_plan") == "proplus":
             if (
-                user.get("override_plan_expires")
-                and user["override_plan_expires"] < time.time()
+                user.get("override_plan_expires", 0) == 0
+                or user["override_plan_expires"] > now
             ):
-                return (
-                    jsonify(
-                        {
-                            "error": "Subscription required",
-                            "code": "subscription-required",
-                        }
-                    ),
-                    403,
-                )
-        return f(*args, **kwargs)
+                return f(*args, **kwargs)
+
+        subscriptions = user.get("subscriptions", [])
+        for sub in subscriptions:
+            if sub.get("plan") == "proplus" and sub.get("status") == "active":
+                if sub.get("current_period_end", 0) > now:
+                    return f(*args, **kwargs)
+
+        return (
+            jsonify(
+                {"error": "Subscription required", "code": "subscription-required"}
+            ),
+            403,
+        )
 
     return decorated
 
 
 def has_pro(username):
     user = Collections["users"].find_one({"username": username})
-    if user.get("override_plan", "free") in ["pro", "proplus"]:
+    now = time.time()
+
+    if user.get("override_plan") in ["pro", "proplus"]:
         if (
-            user.get("override_plan_expires") == 0
-            or user["override_plan_expires"] > time.time()
+            user.get("override_plan_expires", 0) == 0
+            or user["override_plan_expires"] > now
         ):
             return True
+
+    for sub in user.get("subscriptions", []):
+        if sub.get("plan") in ["pro", "proplus"] and sub.get("status") == "active":
+            if sub.get("current_period_end", 0) > now:
+                return True
+
     return False
 
 
 def has_proplus(username):
     user = Collections["users"].find_one({"username": username})
-    if user.get("override_plan", "free") in ["proplus"]:
+    now = time.time()
+
+    if user.get("override_plan") == "proplus":
         if (
-            user.get("override_plan_expires") == 0
-            or user["override_plan_expires"] > time.time()
+            user.get("override_plan_expires", 0) == 0
+            or user["override_plan_expires"] > now
         ):
             return True
+
+    for sub in user.get("subscriptions", []):
+        if sub.get("plan") == "proplus" and sub.get("status") == "active":
+            if sub.get("current_period_end", 0) > now:
+                return True
+
     return False
 
 
 def get_plan(username):
     user = Collections["users"].find_one({"username": username})
-    if user.get("override_plan", "free") in ["pro", "proplus"]:
+    now = time.time()
+
+    if user.get("override_plan") in ["pro", "proplus"]:
         if (
-            user.get("override_plan_expires") == 0
-            or user["override_plan_expires"] > time.time()
+            user.get("override_plan_expires", 0) == 0
+            or user["override_plan_expires"] > now
         ):
-            return user.get("override_plan", "free")
-    return user.get("override_plan", "free")
+            return user["override_plan"]
+
+    for sub in user.get("subscriptions", []):
+        if sub.get("status") == "active" and sub.get("current_period_end", 0) > now:
+            return sub.get("plan", "free")
+
+    return "free"
 
 
 # Middleware
@@ -596,7 +630,7 @@ def authenticate_user():
         "login_endpoint",
         "index",
         "stats_endpoint",
-        "stripe_webhook"
+        "stripe_webhook",
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
         return
@@ -1598,7 +1632,7 @@ def ban_user(username: str, length: str, reason: str) -> Tuple[dict, int]:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
     if user.get("type") == "admin":
         return jsonify({"error": "Cannot ban admin", "code": "cannot-ban-admin"}), 403
-      
+
     for sub in user.get("subscriptions", []):
         if sub["status"] == "active":
             try:
@@ -1889,7 +1923,7 @@ def delete_account_endpoint():
             ),
             403,
         )
-        
+
     for sub in user.get("subscriptions", []):
         if sub["status"] == "active":
             try:
@@ -3075,7 +3109,7 @@ def delete_user_endpoint():
     Collections["users"].delete_one({"username": username})
     Collections["pets"].delete_many({"owner": username})
     Collections["messages"].delete_many({"username": username})
-    
+
     for sub in user.get("subscriptions", []):
         if sub["status"] == "active":
             try:
@@ -3083,7 +3117,7 @@ def delete_user_endpoint():
                 subscription.delete()
             except stripe.error.StripeError as e:
                 app.logger.error(f"Error cancelling subscription: {str(e)}")
-    
+
     send_discord_notification(
         "User deleted", f"Admin {request.username} deleted user {username}", 0xFF0000
     )
@@ -3832,9 +3866,10 @@ def stripe_webhook():
             return jsonify({"error": "Missing metadata"}), 400
 
         if subscription_id:
-            # Subscription-based purchase
             subscription = stripe.Subscription.retrieve(subscription_id)
-            price = stripe.Price.retrieve(subscription["items"]["data"][0]["price"]["id"])
+            price = stripe.Price.retrieve(
+                subscription["items"]["data"][0]["price"]["id"]
+            )
             product = stripe.Product.retrieve(price["product"])
 
             if "pro_plus" in item_key:
@@ -3854,7 +3889,9 @@ def stripe_webhook():
                             "product": product.name,
                             "interval": price.recurring.interval,
                             "status": subscription.status,
-                            "current_period_end": subscription.get("current_period_end", None),
+                            "current_period_end": subscription.get(
+                                "current_period_end"
+                            ),
                             "plan": plan,
                         }
                     }
@@ -3863,18 +3900,16 @@ def stripe_webhook():
 
             send_discord_notification(
                 "New Subscription",
-                f"{username} subscribed to {plan} ({price['recurring']['interval']})"
+                f"{username} subscribed to {plan} ({price.recurring.interval})",
             )
 
         else:
-            # One-time gem purchase
             gems_lookup = {
                 "gems_500": 500,
                 "gems_1000": 1000,
                 "gems_2500": 2500,
                 "gems_5000": 5000,
             }
-
             gems = gems_lookup.get(item_key)
 
             if not gems:
@@ -3886,21 +3921,46 @@ def stripe_webhook():
             )
 
             send_discord_notification(
-                "Gem Purchase",
-                f"{username} purchased {gems} gems.",
+                "Gem Purchase", f"{username} purchased {gems} gems."
             )
 
-    elif event["type"] in ["customer.subscription.updated", "customer.subscription.deleted"]:
+    elif event["type"] in [
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+    ]:
         subscription = event["data"]["object"]
         Collections["users"].update_one(
-            {"subscriptions.subscription_id": subscription.id},
+            {"subscriptions.subscription_id": subscription["id"]},
             {
                 "$set": {
-                    "subscriptions.$.status": subscription.status,
-                    "subscriptions.$.current_period_end": subscription.get("current_period_end", None),
+                    "subscriptions.$.status": subscription["status"],
+                    "subscriptions.$.current_period_end": subscription.get(
+                        "current_period_end"
+                    ),
                 }
             },
         )
+
+    elif event["type"] == "customer.subscription.created":
+        subscription = event["data"]["object"]
+        customer_id = subscription.get("customer")
+        customer = stripe.Customer.retrieve(customer_id)
+        username = customer.get("metadata", {}).get("username")
+
+        if username:
+            Collections["users"].update_one(
+                {
+                    "username": username,
+                    "subscriptions.subscription_id": subscription["id"],
+                },
+                {
+                    "$set": {
+                        "subscriptions.$.current_period_end": subscription.get(
+                            "current_period_end"
+                        )
+                    }
+                },
+            )
 
     return jsonify({"success": True}), 200
 
