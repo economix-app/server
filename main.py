@@ -440,6 +440,62 @@ def get_conversation_id(user1: str, user2: str) -> str:
     return ":".join(sorted([user1, user2]))
 
 
+def generate_lore(name):
+    origins = [
+        "forged in dragonfire beneath the scorched skies of the Ashen Peaks",
+        "woven from shadow and starlight in the silent halls of Vael'tharan",
+        "carved from the bone of a fallen god during the Moonless Age",
+        "summoned through a blood ritual lost to all but the voidborn prophets",
+        "born in the dreams of the dying world, where time no longer flows",
+        "discovered deep within the roots of the World Tree, still pulsing with ancient magic",
+    ]
+
+    creators = [
+        "the vanished kings of the elder age",
+        "sorcerers who bartered their souls for forbidden knowledge",
+        "the architects of reality, whose names are carved into the stars",
+        "a forgotten civilization buried beneath aeons of silence",
+        "a cult sworn to silence, who stitched fate into steel",
+        "the last dreamer of a dying god",
+    ]
+
+    locations = [
+        "the cradle of eternal storm",
+        "the sunken city of glass and bone",
+        "the forbidden halls of the Mirror Citadel",
+        "the edge of the unshaped world",
+        "the screaming void between stars",
+        "the ruins where gods once wept",
+    ]
+
+    powers = [
+        "a will that resists time itself",
+        "a hunger for truth and madness",
+        "the power to unmake reality with a thought",
+        "a pulse that echoes in the soul of the bearer",
+        "echoes of every life it has ended",
+        "the voice of the first silence",
+    ]
+
+    fates = [
+        "claimed by legend and feared by fate",
+        "driven to the brink of divinity or destruction",
+        "unraveled by visions of all possible futures",
+        "blessed and cursed in equal measure",
+        "shackled to an unbreakable prophecy",
+        "never to die, yet never to live again",
+    ]
+
+    return (
+        f"Ancient texts and forgotten songs speak of the {name['material']} {name['noun']}, "
+        f"{random.choice(origins)}. It was shaped by {random.choice(creators)}, "
+        f"in the heart of {random.choice(locations)}. \n\n"
+        f"Legends say it carries {random.choice(powers)}, a force neither light nor dark, "
+        f"but something far older. To wield it is to be {random.choice(fates)}.\n\n"
+        f"Even now, its story is not finished. It waits, patient and cold, for the next hand bold—or foolish—enough to grasp it."
+    )
+
+
 def send_discord_notification(title: str, description: str, color: int = 0x00FF00):
     webhook_url = os.environ.get("DISCORD_WEBHOOK")
     if not webhook_url:
@@ -676,6 +732,7 @@ def update_item(item_id: str):
     meta = Collections["item_meta"].find_one({"id": meta_id})
     if not meta:
         rarity = round(random.uniform(0.1, 100), 1)
+        lore = generate_lore(name)
         meta = {
             "id": meta_id,
             "adjective": name["adjective"],
@@ -687,6 +744,7 @@ def update_item(item_id: str):
             "patented": False,
             "patent_owner": None,
             "price_history": [],
+            "lore": lore,
         }
         Collections["item_meta"].insert_one(meta)
 
@@ -735,18 +793,20 @@ def update_pet(pet_id: str):
         if pet["alive"]:
             seconds_unfed = now - last_fed
             seconds_unplayed = now - last_play_time
-            
+
             hunger_rate = 1
             happiness_rate = 1
-            
+
             if pet["personality"] == "Lazy":
                 happiness_rate = 0.5
-                
+
             if pet["personality"] == "Hungry":
                 hunger_rate = 2
 
             new_hunger = max(0, pet["hunger"] - (seconds_unfed * (hunger_rate / 3600)))
-            new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (happiness_rate / 3600)))
+            new_happiness = max(
+                0, pet["happiness"] - (seconds_unplayed * (happiness_rate / 3600))
+            )
 
             if new_hunger <= 0 or new_happiness <= 0:
                 Collections["pets"].update_one(
@@ -901,6 +961,7 @@ def generate_item(owner: str) -> dict:
     meta = Collections["item_meta"].find_one({"id": meta_id})
     if not meta:
         rarity = round(random.uniform(0.05, 100), 2)
+        lore = generate_lore(name)
         meta = {
             "id": meta_id,
             "adjective": name["adjective"],
@@ -912,6 +973,7 @@ def generate_item(owner: str) -> dict:
             "patented": False,
             "patent_owner": None,
             "price_history": [],
+            "lore": lore,
         }
         Collections["item_meta"].insert_one(meta)
 
