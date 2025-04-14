@@ -1840,66 +1840,7 @@ def login_endpoint():
         data.get("username"),
         data.get("password"),
         request.remote_addr,
-        data.get("code"),
-        data.get("token"),
     )
-
-
-@app.route("/api/setup_2fa", methods=["GET"])
-@requires_unbanned
-def setup_2fa_endpoint():
-    user = Collections["users"].find_one({"username": request.username})
-    if user.get("2fa_enabled", False):
-        return (
-            jsonify({"error": "2FA already enabled", "code": "2fa-already-enabled"}),
-            400,
-        )
-
-    secret = user.get("2fa_secret") or pyotp.random_base32(32)
-    code = user.get("2fa_code") or str(uuid4())
-    Collections["users"].update_one(
-        {"username": request.username},
-        {"$set": {"2fa_secret": secret, "2fa_code": code}},
-    )
-    totp = pyotp.TOTP(secret)
-    uri = totp.provisioning_uri(
-        name=request.username,
-        issuer_name="Economix",
-        image="https://economix.lol/brand/logo.png",
-    )
-    send_discord_notification("2FA enabled", f"Username: {request.username}")
-    img = qrcode.make(uri)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return send_file(buf, mimetype="image/png")
-
-
-@app.route("/api/verify_2fa", methods=["POST"])
-@requires_unbanned
-def verify_2fa_endpoint():
-    data = request.get_json()
-    user = Collections["users"].find_one({"username": request.username})
-    if "2fa_secret" not in user:
-        return jsonify({"error": "2FA not setup", "code": "2fa-not-setup"}), 400
-    totp = pyotp.TOTP(user["2fa_secret"])
-    if not totp.verify(data.get("code")):
-        return jsonify({"error": "Invalid 2FA token", "code": "invalid-2fa-token"}), 401
-    Collections["users"].update_one(
-        {"username": request.username}, {"$set": {"2fa_enabled": True}}
-    )
-    return jsonify({"success": True, "backup_code": user["2fa_code"]})
-
-
-@app.route("/api/disable_2fa", methods=["POST"])
-@requires_unbanned
-def disable_2fa_endpoint():
-    Collections["users"].update_one(
-        {"username": request.username},
-        {"$set": {"2fa_enabled": False, "2fa_secret": None, "2fa_code": None}},
-    )
-    send_discord_notification("2FA disabled", f"Username: {request.username}")
-    return jsonify({"success": True})
 
 
 @app.route("/api/account", methods=["GET"])
