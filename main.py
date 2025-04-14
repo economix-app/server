@@ -748,7 +748,7 @@ def update_item(item_id: str):
         }
         Collections["item_meta"].insert_one(meta)
 
-    updates = {"meta_id": meta_id, "rarity": meta["rarity"], "level": meta["level"]}
+    updates = {"meta_id": meta_id, "rarity": meta["rarity"], "level": meta["level"], "lore": meta["lore"]}
     if "history" not in item:
         updates["history"] = []
     Collections["items"].update_one({"id": item_id}, {"$set": updates})
