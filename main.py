@@ -124,6 +124,7 @@ Collections = {
     "auctions": db.auctions,
     "trades": db.trades,
     "reports": db.reports,
+    "pending_subscriptions": db.pending_subscriptions,
 }
 
 # AutoMod Configuration
@@ -342,6 +343,7 @@ def create_indexes():
         [("offerOwner", ASCENDING), ("requestOwner", ASCENDING)]
     )
     Collections["reports"].create_index([("id", ASCENDING)], unique=True)
+    Collections["pending_subscriptions"].create_index([("subscription_id", ASCENDING)], unique=True)
 
 
 create_indexes()
@@ -3865,7 +3867,21 @@ def stripe_webhook():
         if not username or not item_key:
             return jsonify({"error": "Missing metadata"}), 400
 
-        if not subscription_id:
+        if subscription_id:
+            pending_subscription = Collections["pending_subscriptions"].find_one(
+                {"subscription_id": subscription_id}
+            )
+            if not pending_subscription:
+                return jsonify({"error": "Pending subscription not found"}), 404
+            Collections["pending_subscriptions"].delete_one(
+                {"subscription_id": subscription_id}
+            )
+
+            Collections["users"].update_one(
+                {"username": username},
+                {"$addToSet": {"subscriptions": pending_subscription}},
+            )
+        else:
             # One-time gem purchase
             gems_lookup = {
                 "gems_500": 500,
@@ -3889,46 +3905,30 @@ def stripe_webhook():
 
     elif event["type"] == "customer.subscription.created":
         subscription = event["data"]["object"]
-        customer_id = subscription.get("customer")
-        customer = stripe.Customer.retrieve(customer_id)
-        username = customer.get("metadata", {}).get("username")
 
-        if username:
-            price_id = subscription["items"]["data"][0]["price"]["id"]
-            price = stripe.Price.retrieve(price_id)
-            product = stripe.Product.retrieve(price["product"])
-            product_name = product.name.lower()
+        price_id = subscription["items"]["data"][0]["price"]["id"]
+        price = stripe.Price.retrieve(price_id)
+        product = stripe.Product.retrieve(price["product"])
+        product_name = product.name.lower()
 
-            if "pro_plus" in product_name or "proplus" in product_name:
-                plan = "proplus"
-            elif "pro" in product_name:
-                plan = "pro"
-            else:
-                plan = "unknown"
+        if "pro_plus" in product_name or "proplus" in product_name:
+            plan = "proplus"
+        elif "pro" in product_name:
+            plan = "pro"
+        else:
+            plan = "unknown"
 
-            Collections["users"].update_one(
-                {"username": username},
-                {
-                    "$push": {
-                        "subscriptions": {
-                            "subscription_id": subscription["id"],
-                            "price_id": price.id,
-                            "product": product.name,
-                            "interval": price.recurring.interval,
-                            "status": subscription.status,
-                            "current_period_end": subscription.get(
-                                "current_period_end"
-                            ),
-                            "plan": plan,
-                        }
-                    }
-                },
-            )
-
-            send_discord_notification(
-                "New Subscription",
-                f"{username} subscribed to {plan} ({price.recurring.interval})",
-            )
+        Collections["pending_subscriptions"].insert_one(
+            {
+                "subscription_id": subscription["id"],
+                "price_id": price.id,
+                "product": product.name,
+                "interval": price.recurring.interval,
+                "status": subscription.status,
+                "current_period_end": subscription.get("current_period_end"),
+                "plan": plan,
+            },
+        )
 
     elif event["type"] in [
         "customer.subscription.updated",
