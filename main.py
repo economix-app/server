@@ -1865,24 +1865,9 @@ def setup_2fa_endpoint():
     uri = totp.provisioning_uri(
         name=request.username,
         issuer_name="Economix",
-        image="https://economix.proplayer919.dev/brand/logo.png",
+        image="https://economix.lol/brand/logo.png",
     )
     send_discord_notification("2FA enabled", f"Username: {request.username}")
-    return jsonify({"success": True, "provisioning_uri": uri, "backup_code": code})
-
-
-@app.route("/api/2fa_qrcode", methods=["GET"])
-@requires_unbanned
-def get_2fa_qrcode_endpoint():
-    user = Collections["users"].find_one({"username": request.username})
-    if "2fa_secret" not in user:
-        return jsonify({"error": "2FA not enabled", "code": "2fa-not-enabled"}), 400
-    totp = pyotp.TOTP(user["2fa_secret"])
-    uri = totp.provisioning_uri(
-        name=request.username,
-        issuer_name="Economix",
-        image="https://economix.proplayer919.dev/brand/logo.png",
-    )
     img = qrcode.make(uri)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -1903,7 +1888,7 @@ def verify_2fa_endpoint():
     Collections["users"].update_one(
         {"username": request.username}, {"$set": {"2fa_enabled": True}}
     )
-    return jsonify({"success": True})
+    return jsonify({"success": True, "backup_code": user["2fa_code"]})
 
 
 @app.route("/api/disable_2fa", methods=["POST"])
