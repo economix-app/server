@@ -2196,15 +2196,15 @@ def play_with_pet_endpoint():
     if pet["personality"] == "Playful":
         pet["happiness"] += 20  # Extra happiness for Playful pets
     elif pet["personality"] == "Adventurous":
-        pet["experience"] += 15  # Extra experience for Adventurous pets
+        level_up_pet(pet_id, 15)  # Extra experience for Adventurous pets
         pet["happiness"] += 10
     else:
         pet["happiness"] += 10
+        
     Collections["pets"].update_one(
         {"id": pet_id},
         {
-            "$inc": {"happiness": min(10, 100 - pet["happiness"])},
-            "$set": {"last_play_time": now},
+            "$set": {"last_play_time": now, "happiness": min(100, pet["happiness"])},
         },
     )
     Collections["users"].update_one(
