@@ -3754,7 +3754,7 @@ def revive_pet_endpoint():
         )
 
     Collections["pets"].update_one(
-        {"id": pet_id}, {"$set": {"alive": True, "happiness": 100, "hunger": 100}}
+        {"id": pet_id}, {"$set": {"alive": True, "happiness": 100, "hunger": 100, "last_fed": time.time(), "last_play_time": time.time()}}
     )
 
     send_discord_notification(
