@@ -957,11 +957,12 @@ def generate_item(owner: str) -> dict:
     meta_id = sha256(
         f"{name['adjective']}{name['material']}{name['noun']}{name['suffix']}".encode()
     ).hexdigest()
+    
+    lore = generate_lore(name)
 
     meta = Collections["item_meta"].find_one({"id": meta_id})
     if not meta:
         rarity = round(random.uniform(0.05, 100), 2)
-        lore = generate_lore(name)
         meta = {
             "id": meta_id,
             "adjective": name["adjective"],
@@ -989,6 +990,7 @@ def generate_item(owner: str) -> dict:
         "price": 0,
         "owner": owner,
         "created_at": int(time.time()),
+        "lore": meta["lore"],
     }
 
 
