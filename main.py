@@ -3867,16 +3867,19 @@ class PluginManager:
             callback(event)
 
     def load_plugins(self, plugins_dir: str):
-        for filename in os.listdir(plugins_dir):
-            if filename.endswith(".py"):
-                plugin_path = os.path.join(plugins_dir, filename)
-                spec = importlib.util.spec_from_file_location(
-                    filename[:-3], plugin_path
-                )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                if hasattr(module, "register"):
-                    module.register(self)
+        try:
+            for filename in os.listdir(plugins_dir):
+                if filename.endswith(".py"):
+                    plugin_path = os.path.join(plugins_dir, filename)
+                    spec = importlib.util.spec_from_file_location(
+                        filename[:-3], plugin_path
+                    )
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    if hasattr(module, "register"):
+                        module.register(self)
+        except Exception as e:
+            app.logger.error(f"Error loading plugins: {e}")
 
 
 # Initialize PluginManager and load plugins
