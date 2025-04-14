@@ -3865,45 +3865,8 @@ def stripe_webhook():
         if not username or not item_key:
             return jsonify({"error": "Missing metadata"}), 400
 
-        if subscription_id:
-            subscription = stripe.Subscription.retrieve(subscription_id)
-            price = stripe.Price.retrieve(
-                subscription["items"]["data"][0]["price"]["id"]
-            )
-            product = stripe.Product.retrieve(price["product"])
-
-            if "pro_plus" in item_key:
-                plan = "proplus"
-            elif "pro" in item_key:
-                plan = "pro"
-            else:
-                plan = "unknown"
-
-            Collections["users"].update_one(
-                {"username": username},
-                {
-                    "$push": {
-                        "subscriptions": {
-                            "subscription_id": subscription_id,
-                            "price_id": price.id,
-                            "product": product.name,
-                            "interval": price.recurring.interval,
-                            "status": subscription.status,
-                            "current_period_end": subscription.get(
-                                "current_period_end"
-                            ),
-                            "plan": plan,
-                        }
-                    }
-                },
-            )
-
-            send_discord_notification(
-                "New Subscription",
-                f"{username} subscribed to {plan} ({price.recurring.interval})",
-            )
-
-        else:
+        if not subscription_id:
+            # One-time gem purchase
             gems_lookup = {
                 "gems_500": 500,
                 "gems_1000": 1000,
@@ -3924,6 +3887,49 @@ def stripe_webhook():
                 "Gem Purchase", f"{username} purchased {gems} gems."
             )
 
+    elif event["type"] == "customer.subscription.created":
+        subscription = event["data"]["object"]
+        customer_id = subscription.get("customer")
+        customer = stripe.Customer.retrieve(customer_id)
+        username = customer.get("metadata", {}).get("username")
+
+        if username:
+            price_id = subscription["items"]["data"][0]["price"]["id"]
+            price = stripe.Price.retrieve(price_id)
+            product = stripe.Product.retrieve(price["product"])
+            product_name = product.name.lower()
+
+            if "pro_plus" in product_name or "proplus" in product_name:
+                plan = "proplus"
+            elif "pro" in product_name:
+                plan = "pro"
+            else:
+                plan = "unknown"
+
+            Collections["users"].update_one(
+                {"username": username},
+                {
+                    "$push": {
+                        "subscriptions": {
+                            "subscription_id": subscription["id"],
+                            "price_id": price.id,
+                            "product": product.name,
+                            "interval": price.recurring.interval,
+                            "status": subscription.status,
+                            "current_period_end": subscription.get(
+                                "current_period_end"
+                            ),
+                            "plan": plan,
+                        }
+                    }
+                },
+            )
+
+            send_discord_notification(
+                "New Subscription",
+                f"{username} subscribed to {plan} ({price.recurring.interval})",
+            )
+
     elif event["type"] in [
         "customer.subscription.updated",
         "customer.subscription.deleted",
@@ -3940,27 +3946,6 @@ def stripe_webhook():
                 }
             },
         )
-
-    elif event["type"] == "customer.subscription.created":
-        subscription = event["data"]["object"]
-        customer_id = subscription.get("customer")
-        customer = stripe.Customer.retrieve(customer_id)
-        username = customer.get("metadata", {}).get("username")
-
-        if username:
-            Collections["users"].update_one(
-                {
-                    "username": username,
-                    "subscriptions.subscription_id": subscription["id"],
-                },
-                {
-                    "$set": {
-                        "subscriptions.$.current_period_end": subscription.get(
-                            "current_period_end"
-                        )
-                    }
-                },
-            )
 
     return jsonify({"success": True}), 200
 
