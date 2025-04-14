@@ -712,6 +712,7 @@ def update_pet(pet_id: str):
         "happiness": 100,
         "last_play_time": int(time.time()),  # Initialize last_play_time
         "last_update_time": int(time.time()),  # Track the last update time
+        "personality": random.choice(["Playful", "Lazy", "Adventurous", "Hungry"]),
     }
     updates = {}
     for key, value in defaults.items():
@@ -734,9 +735,18 @@ def update_pet(pet_id: str):
         if pet["alive"]:
             seconds_unfed = now - last_fed
             seconds_unplayed = now - last_play_time
+            
+            hunger_rate = 1
+            happiness_rate = 1
+            
+            if pet["personality"] == "Lazy":
+                happiness_rate = 0.5
+                
+            if pet["personality"] == "Hungry":
+                hunger_rate = 2
 
-            new_hunger = max(0, pet["hunger"] - (seconds_unfed * (1 / 3600)))
-            new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (1 / 3600)))
+            new_hunger = max(0, pet["hunger"] - (seconds_unfed * (hunger_rate / 3600)))
+            new_happiness = max(0, pet["happiness"] - (seconds_unplayed * (happiness_rate / 3600)))
 
             if new_hunger <= 0 or new_happiness <= 0:
                 Collections["pets"].update_one(
@@ -934,6 +944,7 @@ def generate_pet(owner: str, base_price: int = 100) -> dict:
         "base_price": base_price,
         "hunger": 0,
         "happiness": 100,
+        "personality": random.choice(["Playful", "Lazy", "Adventurous", "Hungry"]),
     }
 
 
@@ -2051,6 +2062,10 @@ def feed_pet_endpoint():
     Collections["users"].update_one(
         {"username": request.username}, {"$inc": {"tokens": -10}}
     )
+    if pet["personality"] == "Hungry":
+        pet["happiness"] += 15  # Extra happiness for Hungry pets
+    else:
+        pet["happiness"] += 10
     Collections["pets"].update_one(
         {"id": pet_id},
         {
@@ -2096,6 +2111,13 @@ def play_with_pet_endpoint():
             429,
         )
 
+    if pet["personality"] == "Playful":
+        pet["happiness"] += 20  # Extra happiness for Playful pets
+    elif pet["personality"] == "Adventurous":
+        pet["experience"] += 15  # Extra experience for Adventurous pets
+        pet["happiness"] += 10
+    else:
+        pet["happiness"] += 10
     Collections["pets"].update_one(
         {"id": pet_id},
         {
