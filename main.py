@@ -2484,7 +2484,7 @@ def leaderboard_endpoint():
         {"$match": {"banned": {"$ne": True}}},
         {"$sort": {"tokens": DESCENDING}},
         {"$limit": 10},
-        {"$project": {"_id": 0, "username": 1, "tokens": 1, "override_plan": 1}},
+        {"$project": {"_id": 0, "username": 1, "tokens": 1}},
     ]
     results = list(Collections["users"].aggregate(pipeline))
 
@@ -2496,7 +2496,14 @@ def leaderboard_endpoint():
 
     for i, item in enumerate(results):
         item["place"] = ordinal(i + 1)
-        item["plan"] = get_plan(item["username"])
+        user = Collections["users"].find_one({"username": item["username"]})
+        item["nameplate"] = user.get("equipped_nameplate")
+        icon = ""
+        if has_proplus(user["username"]):
+            icon = "🌟"
+        elif has_pro(user["username"]):
+            icon = "⭐"
+        item["icon"] = icon
     return jsonify({"leaderboard": results})
 
 
