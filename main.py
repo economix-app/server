@@ -1161,7 +1161,9 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
         send_discord_notification(
             "New user registered", f"Username: {username}\nIP: {ip}"
         )
-        plugin_manager.trigger_hooks("on_user_register", {"username": username, "ip": ip}, {"db": db})
+        plugin_manager.trigger_hooks(
+            "on_user_register", {"username": username, "ip": ip}, {"db": db}
+        )
         return jsonify({"success": True}), 201
     except DuplicateKeyError:
         return jsonify({"error": "Username exists", "code": "username-exists"}), 400
@@ -1225,7 +1227,9 @@ def login(
     token = str(uuid4())
     Collections["users"].update_one({"username": username}, {"$set": {"token": token}})
     send_discord_notification("User logged in", f"Username: {username}")
-    plugin_manager.trigger_hooks("on_user_login", {"username": username, "ip": ip}, {"db": db})
+    plugin_manager.trigger_hooks(
+        "on_user_login", {"username": username, "ip": ip}, {"db": db}
+    )
     return jsonify({"success": True, "token": token})
 
 
@@ -1996,7 +2000,9 @@ def delete_account_endpoint():
     Collections["items"].delete_many({"owner": request.username})
     Collections["users"].delete_one({"username": request.username})
     send_discord_notification("User deleted", f"Username: {request.username}")
-    plugin_manager.trigger_hooks("on_account_delete", {"username": request.username}, {"db": db})
+    plugin_manager.trigger_hooks(
+        "on_account_delete", {"username": request.username}, {"db": db}
+    )
     return jsonify({"success": True})
 
 
@@ -2058,7 +2064,9 @@ def create_item_endpoint():
         "New Item Created",
         f"User {request.username} created: {item_name} (Rarity: {new_item['rarity']})",
     )
-    plugin_manager.trigger_hooks("on_item_create", {"username": request.username, "item": new_item}, {"db": db})
+    plugin_manager.trigger_hooks(
+        "on_item_create", {"username": request.username, "item": new_item}, {"db": db}
+    )
     return jsonify(
         {k: v for k, v in new_item.items() if k not in ["_id", "item_secret"]}
     )
@@ -2258,7 +2266,9 @@ def mine_tokens_endpoint():
     send_discord_notification(
         "Tokens Mined", f"User {request.username} mined {tokens} tokens"
     )
-    plugin_manager.trigger_hooks("on_tokens_mined", {"username": request.username, "tokens": tokens}, {"db": db})
+    plugin_manager.trigger_hooks(
+        "on_tokens_mined", {"username": request.username, "tokens": tokens}, {"db": db}
+    )
     return jsonify({"success": True, "tokens": tokens})
 
 
@@ -2432,7 +2442,9 @@ def buy_item_endpoint():
         f"User {request.username} bought {item_name} from {item['owner']} for {item['price']} tokens",
         0x0000FF,
     )
-    plugin_manager.trigger_hooks("on_item_purchase", {"buyer": request.username, "item": item}, {"db": db})
+    plugin_manager.trigger_hooks(
+        "on_item_purchase", {"buyer": request.username, "item": item}, {"db": db}
+    )
     return jsonify({"success": True})
 
 
@@ -2523,7 +2535,11 @@ def leaderboard_endpoint():
 @requires_unbanned
 def send_message_endpoint():
     data = request.get_json()
-    plugin_manager.trigger_hooks("on_message_send", {"username": request.username, "message": data}, {"db": db, "chat": {"send_message": send_message}})
+    plugin_manager.trigger_hooks(
+        "on_message_send",
+        {"username": request.username, "message": data},
+        {"db": db, "chat": {"send_message": send_message}},
+    )
     return send_message(
         data.get("room", "global"),
         data.get("message"),
@@ -3704,6 +3720,50 @@ def equip_cosmetic_endpoint():
     )
 
     return jsonify({"success": True, "equipped_cosmetic": cosmetic_id})
+  
+@app.route("/api/revive_pet", methods=["POST"])
+@requires_unbanned
+def revive_pet_endpoint():
+    data = request.get_json()
+    pet_id = data.get("pet_id")
+
+    if not pet_id:
+        return jsonify({"error": "Pet ID not provided"}), 400
+
+    pet = Collections["pets"].find_one({"id": pet_id})
+    if not pet:
+        return jsonify({"error": "Pet not found", "code": "pet-not-found"}), 404
+      
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+      
+    if user["gems"] != "$INFINITY":
+        if user["gems"] < 50:
+            return jsonify({"error": "Not enough gems", "code": "not-enough-gems"}), 402
+          
+    if pet["alive"]:
+        return jsonify({"error": "Pet is already alive", "code": "pet-alive"}), 400
+      
+    if pet["owner"] != request.username:
+        return jsonify({"error": "Unauthorized", "code": "unauthorized"}), 403
+      
+    if user["gems"] != "$INFINITY":
+        Collections["users"].update_one(
+            {"username": request.username}, {"$inc": {"gems": -50}}
+        )
+
+    Collections["pets"].update_one(
+        {"id": pet_id}, {"$set": {"alive": True, "happiness": 100, "hunger": 100}}
+    )
+
+    send_discord_notification(
+        "Pet Revived",
+        f"{request.username} revived pet {pet['name']} ({pet['id']})",
+        0x00FF00,
+    )
+
+    return jsonify({"success": True})
 
 
 @app.route("/stripe_webhook", methods=["POST"])
