@@ -118,7 +118,6 @@ Collections = {
     "failed_logins": db.failed_logins,
     "user_history": db.user_history,
     "creator_codes": db.creator_codes,
-    "companies": db.companies,
     "auctions": db.auctions,
     "trades": db.trades,
     "reports": db.reports,
@@ -333,8 +332,6 @@ def create_indexes():
     )
     Collections["user_history"].create_index([("username", ASCENDING)])
     Collections["user_history"].create_index([("code", ASCENDING)])
-    Collections["companies"].create_index([("name", ASCENDING)], unique=True)
-    Collections["companies"].create_index([("owner", ASCENDING)])
     Collections["auctions"].create_index([("item_id", ASCENDING)])
     Collections["auctions"].create_index([("owner", ASCENDING)])
     Collections["trades"].create_index(
@@ -937,8 +934,6 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
             {"username": username},
             {"$push": {"cosmetics": "gold"}},
         )
-
-    remove_companies()
 
 
 # Item and Pet Generation
@@ -2578,18 +2573,6 @@ def redeem_creator_code_endpoint():
     )
 
     return jsonify({"success": True, "tokens": extra_tokens, "pets": extra_pets})
-
-
-# Remove all companies and refund owners
-def remove_companies():
-    companies = Collections["companies"].find()
-    for company in companies:
-        owner = company["owner"]
-        refund_amount = 500 + (company["workers"] * 100)  # Refund base cost + workers
-        Collections["users"].update_one(
-            {"username": owner}, {"$inc": {"tokens": refund_amount}}
-        )
-    Collections["companies"].delete_many({})
 
 
 @app.route("/api/send_tokens", methods=["POST"])
