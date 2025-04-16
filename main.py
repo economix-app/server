@@ -432,10 +432,6 @@ def parse_time(length: str) -> int:
     return int(time.time()) + duration
 
 
-def get_conversation_id(user1: str, user2: str) -> str:
-    return ":".join(sorted([user1, user2]))
-
-
 def generate_lore(name):
     origins = [
         "forged in dragonfire beneath the scorched skies of the Ashen Peaks",
@@ -2107,7 +2103,7 @@ def play_with_pet_endpoint():
         pet["happiness"] += 10
     else:
         pet["happiness"] += 10
-        
+
     Collections["pets"].update_one(
         {"id": pet_id},
         {
@@ -3529,7 +3525,8 @@ def equip_cosmetic_endpoint():
     )
 
     return jsonify({"success": True, "equipped_cosmetic": cosmetic_id})
-  
+
+
 @app.route("/api/revive_pet", methods=["POST"])
 @requires_unbanned
 def revive_pet_endpoint():
@@ -3542,28 +3539,37 @@ def revive_pet_endpoint():
     pet = Collections["pets"].find_one({"id": pet_id})
     if not pet:
         return jsonify({"error": "Pet not found", "code": "pet-not-found"}), 404
-      
+
     user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-      
+
     if user["gems"] != "$INFINITY":
         if user["gems"] < 50:
             return jsonify({"error": "Not enough gems", "code": "not-enough-gems"}), 402
-          
+
     if pet["alive"]:
         return jsonify({"error": "Pet is already alive", "code": "pet-alive"}), 400
-      
+
     if pet["owner"] != request.username:
         return jsonify({"error": "Unauthorized", "code": "unauthorized"}), 403
-      
+
     if user["gems"] != "$INFINITY":
         Collections["users"].update_one(
             {"username": request.username}, {"$inc": {"gems": -50}}
         )
 
     Collections["pets"].update_one(
-        {"id": pet_id}, {"$set": {"alive": True, "happiness": 100, "hunger": 100, "last_fed": time.time(), "last_play_time": time.time()}}
+        {"id": pet_id},
+        {
+            "$set": {
+                "alive": True,
+                "happiness": 100,
+                "hunger": 100,
+                "last_fed": time.time(),
+                "last_play_time": time.time(),
+            }
+        },
     )
 
     send_discord_notification(
