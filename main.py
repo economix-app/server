@@ -3603,7 +3603,6 @@ def get_downtime():
     return jsonify(
         {
             "downtime": downtime.get("enabled", False),
-            "until": downtime.get("until", None),
             "message": downtime.get("message", ""),
         }
     )
