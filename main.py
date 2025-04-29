@@ -30,7 +30,7 @@ from datetime import datetime
 # Constants
 ITEM_CREATE_COOLDOWN = 60  # 1 minute
 TOKEN_MINE_COOLDOWN = 180  # 3 minutes
-MAX_ITEM_PRICE = 1000 * 1000 * 100  # 1 million
+MAX_ITEM_PRICE = 1000 * 100  # 100 thousand
 MIN_ITEM_PRICE = 1
 
 DEBUG_MODE = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
