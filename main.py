@@ -561,7 +561,6 @@ def requires_unbanned(f):
                     {
                         "error": "Service is currently unavailable due to downtime",
                         "code": "downtime-active",
-                        "until": downtime.get("until"),
                         "message": downtime.get("message"),
                     }
                 ),
@@ -3616,27 +3615,19 @@ def set_downtime():
     data = request.get_json()
     enabled = data.get("enabled")
     message = data.get("message")
-    until = data.get("until")
 
     if enabled is None:
         return jsonify({"error": "Enabled status not provided"}), 400
 
-    if enabled and not until:
-        return jsonify({"error": "Until time not provided"}), 400
-      
-    until = parse_time(until) if until else None
-    if until and until < time.time():
-        return jsonify({"error": "Until time must be in the future"}), 400
-
     Collections["misc"].update_one(
         {"type": "downtime"},
-        {"$set": {"enabled": enabled, "until": until, "message": message}},
+        {"$set": {"enabled": enabled, "message": message}},
         upsert=True,
     )
 
     send_discord_notification(
         "Downtime Status Changed",
-        f"Admin {request.username} changed downtime status to {enabled}. Message: {message}. Until: {until}",
+        f"Admin {request.username} changed downtime status to {enabled}. Message: {message}.",
         0xFF0000,
     )
 
