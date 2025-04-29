@@ -555,7 +555,7 @@ def requires_unbanned(f):
         ):
             return jsonify({"error": "You are banned", "code": "banned"}), 403
         downtime = Collections["misc"].find_one({"type": "downtime"})
-        if downtime and downtime.get("enabled", False):
+        if downtime and downtime.get("enabled", False) and user.get("type", "user") != "admin":
             return (
                 jsonify(
                     {
