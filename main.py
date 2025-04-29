@@ -33,7 +33,7 @@ TOKEN_MINE_COOLDOWN = 180  # 3 minutes
 MAX_ITEM_PRICE = 1000 * 100  # 100 thousand
 MIN_ITEM_PRICE = 1
 
-DEBUG_MODE = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
+DEBUG_MODE = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
 
 # Application Setup
 app = Flask(__name__)
