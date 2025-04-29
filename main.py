@@ -3594,7 +3594,6 @@ def revive_pet_endpoint():
 
 
 @app.route("/api/get_downtime", methods=["GET"])
-@requires_unbanned
 def get_downtime():
     downtime = Collections["misc"].find_one({"type": "downtime"})
     if not downtime:
