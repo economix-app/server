@@ -554,6 +554,18 @@ def requires_unbanned(f):
             user["banned_until"] > time.time() or user["banned_until"] == 0
         ):
             return jsonify({"error": "You are banned", "code": "banned"}), 403
+        downtime = Collections["misc"].find_one({"type": "downtime"})
+        if downtime and downtime.get("enabled", False):
+            return (
+                jsonify(
+                    {
+                        "error": "Service is currently unavailable due to downtime",
+                        "code": "downtime-active",
+                        "until": downtime.get("until"),
+                    }
+                ),
+                503,
+            )
         return f(*args, **kwargs)
 
     return decorated
@@ -3576,6 +3588,49 @@ def revive_pet_endpoint():
         "Pet Revived",
         f"{request.username} revived pet {pet['name']} ({pet['id']})",
         0x00FF00,
+    )
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/get_downtime", methods=["GET"])
+@requires_unbanned
+def get_downtime():
+    downtime = Collections["misc"].find_one({"type": "downtime"})
+    if not downtime:
+        return jsonify({"downtime": False})
+
+    return jsonify(
+        {
+            "downtime": downtime.get("enabled", False),
+            "until": downtime.get("until", None),
+        }
+    )
+
+
+@app.route("/api/set_downtime", methods=["POST"])
+@requires_admin
+def set_downtime():
+    data = request.get_json()
+    enabled = data.get("enabled")
+    until = data.get("until")
+
+    if enabled is None:
+        return jsonify({"error": "Enabled status not provided"}), 400
+
+    if enabled and not until:
+        return jsonify({"error": "Until time not provided"}), 400
+
+    Collections["misc"].update_one(
+        {"type": "downtime"},
+        {"$set": {"enabled": enabled, "until": until}},
+        upsert=True,
+    )
+
+    send_discord_notification(
+        "Downtime Status Changed",
+        f"Admin {request.username} changed downtime status to {enabled}. Until: {until}",
+        0xFF0000,
     )
 
     return jsonify({"success": True})
