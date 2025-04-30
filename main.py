@@ -555,7 +555,11 @@ def requires_unbanned(f):
         ):
             return jsonify({"error": "You are banned", "code": "banned"}), 403
         downtime = Collections["misc"].find_one({"type": "downtime"})
-        if downtime and downtime.get("enabled", False) and user.get("type", "user") != "admin":
+        if (
+            downtime
+            and downtime.get("enabled", False)
+            and user.get("type", "user") != "admin"
+        ):
             return (
                 jsonify(
                     {
@@ -695,10 +699,10 @@ def authenticate_user():
         "stats_endpoint",
         "stripe_webhook",
         "ping",
-        "get_downtime"
+        "get_downtime",
+        "get_raw_downtime"
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
-        request.username = None
         return
 
     auth = request.headers.get("Authorization")
@@ -3601,17 +3605,31 @@ def get_downtime():
     downtime = Collections["misc"].find_one({"type": "downtime"})
     if not downtime:
         return jsonify({"downtime": False})
-    
+
     user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    if user.get("type") == "admin":
+        return jsonify(
+            {
+                "downtime": False,
+                "message": "",
+            }
+        )
+
+    return jsonify(
+        {
+            "downtime": downtime.get("enabled", False),
+            "message": downtime.get("message", ""),
+        }
+    )
     
-    if user:
-        if user.get("type") == "admin":
-            return jsonify(
-                {
-                    "downtime": False,
-                    "message": "",
-                }
-            )
+@app.route("/api/get_raw_downtime", methods=["GET"])
+def get_downtime():
+    downtime = Collections["misc"].find_one({"type": "downtime"})
+    if not downtime:
+        return jsonify({"downtime": False})
 
     return jsonify(
         {
