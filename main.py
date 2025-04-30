@@ -3603,14 +3603,15 @@ def get_downtime():
         return jsonify({"downtime": False})
     
     user = Collections["users"].find_one({"username": request.username})
-          
-    if user.get("type") == "admin":
-        return jsonify(
-            {
-                "downtime": False,
-                "message": "",
-            }
-        )
+    
+    if user:
+        if user.get("type") == "admin":
+            return jsonify(
+                {
+                    "downtime": False,
+                    "message": "",
+                }
+            )
 
     return jsonify(
         {
