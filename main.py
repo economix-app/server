@@ -3626,7 +3626,7 @@ def get_downtime():
     )
     
 @app.route("/api/get_raw_downtime", methods=["GET"])
-def get_downtime():
+def get_raw_downtime():
     downtime = Collections["misc"].find_one({"type": "downtime"})
     if not downtime:
         return jsonify({"downtime": False})
