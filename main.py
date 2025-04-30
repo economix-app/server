@@ -3603,8 +3603,6 @@ def get_downtime():
         return jsonify({"downtime": False})
     
     user = Collections["users"].find_one({"username": request.username})
-    if not user:
-        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
           
     if user.get("type") == "admin":
         return jsonify(
