@@ -698,6 +698,7 @@ def authenticate_user():
         "get_downtime"
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
+        request.username = None
         return
 
     auth = request.headers.get("Authorization")
@@ -3601,21 +3602,17 @@ def get_downtime():
     if not downtime:
         return jsonify({"downtime": False})
     
-    try:
-        user = Collections["users"].find_one({"username": request.username})
-        if not user:
-            return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
           
-        if user.get("type") == "admin":
-            return jsonify(
-                {
-                    "downtime": False,
-                    "message": "",
-                }
-            )
-    except AttributeError:
-        # If request.username is not set, assume it's a non-admin user
-        pass
+    if user.get("type") == "admin":
+        return jsonify(
+            {
+                "downtime": False,
+                "message": "",
+            }
+        )
 
     return jsonify(
         {
