@@ -694,6 +694,8 @@ def authenticate_user():
         "index",
         "stats_endpoint",
         "stripe_webhook",
+        "ping",
+        "get_downtime"
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
         return
