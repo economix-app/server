@@ -1458,7 +1458,7 @@ def send_message(
                 "id": str(uuid4()),
                 "room": room_name,
                 "username": "Message Blocked",
-                "message": f"Your message was blocked due to profanity. Message: <b>{sanitized_message}</b>",
+                "message": f"Message from <b>{username}</b> was blocked due to profanity. Message: <b>{sanitized_message}</b>",
                 "timestamp": time.time(),
                 "badges": ["❌"],
                 "type": "system",
