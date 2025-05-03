@@ -1462,6 +1462,7 @@ def send_message(
                 "timestamp": time.time(),
                 "badges": ["❌"],
                 "type": "system",
+                "visibility": [username]
             }
         )
         return jsonify({"success": True})
