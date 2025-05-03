@@ -1125,8 +1125,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
         )
         return jsonify({"error": "Account spam detected", "code": "account-spam"}), 429
 
-    username = profanity.censor(username.strip(), censor_char="-")
-    if not re.match(r"^[a-zA-Z0-9_-]{3,20}$", username):
+    if not re.match(r"^[a-zA-Z0-9_-]{3,20}$", username) or profanity.contains_profanity(username):
         return jsonify({"error": "Invalid username"}), 400
 
     try:
