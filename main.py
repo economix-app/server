@@ -1447,11 +1447,25 @@ def send_message(
     Collections["message_attempts"].insert_one(
         {"username": username, "ip": ip, "timestamp": current_time}
     )
-    sanitized_message = profanity.censor(html.escape(message_content.strip()))
+    sanitized_message = html.escape(message_content.strip())
     if not sanitized_message:
         return jsonify({"error": "Message empty", "code": "empty-message"}), 400
     if len(sanitized_message) > 200:
         return jsonify({"error": "Message too long", "code": "message-too-long"}), 400
+
+    if profanity.contains_profanity(sanitized_message):
+        Collections["messages"].insert_one(
+            {
+                "id": str(uuid4()),
+                "room": room_name,
+                "username": "Message Blocked",
+                "message": f"Your message was blocked due to profanity. Message: <b>{sanitized_message}</b>",
+                "timestamp": time.time(),
+                "badges": ["❌"],
+                "type": "system",
+            }
+        )
+        return jsonify({"success": True})
 
     if sanitized_message.startswith("/"):
         system_message = parse_command(username, sanitized_message, room_name)
@@ -3624,7 +3638,7 @@ def get_downtime():
             "message": downtime.get("message", ""),
         }
     )
-    
+
 @app.route("/api/get_raw_downtime", methods=["GET"])
 def get_raw_downtime():
     downtime = Collections["misc"].find_one({"type": "downtime"})
