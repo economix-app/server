@@ -699,7 +699,6 @@ def authenticate_user():
         "stats_endpoint",
         "stripe_webhook",
         "ping",
-        "get_downtime",
         "get_raw_downtime"
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
@@ -3620,20 +3619,17 @@ def get_downtime():
     if not downtime:
         return jsonify({"downtime": False})
 
-    try:
-        user = Collections["users"].find_one({"username": request.username})
-        if not user:
-            return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
-        if user.get("type") == "admin":
-            return jsonify(
-                {
-                    "downtime": False,
-                    "message": "",
-                }
-            )
-    except Exception as e:
-        pass
+    if user.get("type") == "admin":
+        return jsonify(
+            {
+                "downtime": False,
+                "message": "",
+            }
+        )
 
     return jsonify(
         {
