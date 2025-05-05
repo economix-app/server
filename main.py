@@ -8,6 +8,8 @@ from threading import Thread
 from typing import Dict, Optional, Tuple
 import traceback
 import sys
+import markdown
+import bleach
 
 from flask import Flask, request, jsonify, send_file, redirect
 from flask_cors import CORS
@@ -886,7 +888,6 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         "history": [],
         "exp": 0,
         "level": 1,
-        "frozen": False,
         "muted": False,
         "muted_until": None,
         "inventory_visibility": "private",
@@ -1455,8 +1456,6 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         return "Invalid command"
 
 
-
-
 def send_message(
     room_name: str, message_content: str, username: str, ip: str
 ) -> Tuple[dict, int]:
@@ -1470,28 +1469,24 @@ def send_message(
             400,
         )
 
+    # Room access checks...
     if room_name == "exclusive":
-        if not (has_pro(username) or request.user_type in ["admin"]):
+        if not (has_pro(username) or user.get("type") == "admin"):
             return jsonify({"error": "Access denied", "code": "access-denied"}), 403
     if room_name == "staff":
-        if request.user_type not in ["mod", "admin"]:
+        if user.get("type") not in ["mod", "admin"]:
             return jsonify({"error": "Access denied", "code": "access-denied"}), 403
     if room_name not in ["global", "exclusive", "staff"]:
         return jsonify({"error": "Invalid room", "code": "invalid-room"}), 400
-
     if not re.match(r"^[a-zA-Z0-9_-]{1,50}$", room_name):
         return jsonify({"error": "Invalid room name", "code": "invalid-room"}), 400
 
+    # Anti‐spam
     current_time = time.time()
-    message_count = Collections["message_attempts"].count_documents(
-        {
-            "username": username,
-            "timestamp": {
-                "$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]
-            },
-        }
-    )
-
+    message_count = Collections["message_attempts"].count_documents({
+        "username": username,
+        "timestamp": {"$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]}
+    })
     if message_count >= AUTOMOD_CONFIG["MESSAGE_SPAM_THRESHOLD"]:
         is_new = (current_time - user["created_at"]) < AUTOMOD_CONFIG["MIN_ACCOUNT_AGE"]
         mute_duration = (
@@ -1500,32 +1495,23 @@ def send_message(
             else AUTOMOD_CONFIG["MESSAGE_SPAM_MUTE_DURATION"]
         )
         mute_user(username, mute_duration, notify=False)
-        deleted = (
-            Collections["messages"]
-            .delete_many(
-                {
-                    "username": username,
-                    "timestamp": {
-                        "$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]
-                    },
-                }
-            )
-            .deleted_count
-        )
-        Collections["messages"].insert_one(
-            {
-                "id": str(uuid4()),
-                "room": room_name,
-                "username": "AutoMod",
-                "message": f"""
-            <p><span style="color: #FF5555">[WARNING]</span> Detected <b>{deleted}x</b> Message Spam</p>
-            <p>User: <b>{username}</b> has been muted for <b>{mute_duration}</b></p>
-            """,
-                "timestamp": current_time,
-                "badges": ["⚙️"],
-                "type": "system",
-            }
-        )
+        deleted = Collections["messages"].delete_many({
+            "username": username,
+            "timestamp": {"$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]}
+        }).deleted_count
+        Collections["messages"].insert_one({
+            "id": str(uuid4()),
+            "room": room_name,
+            "username": "AutoMod",
+            "message": (
+                f"<p><span style=\"color: #FF5555\">[WARNING]</span> Detected "
+                f"<b>{deleted}x</b> Message Spam</p>"
+                f"<p>User: <b>{username}</b> has been muted for <b>{mute_duration}</b></p>"
+            ),
+            "timestamp": current_time,
+            "badges": ["⚙️"],
+            "type": "system",
+        })
         send_discord_notification(
             "AutoMod Action",
             f"Muted {username} for spamming. Deleted {deleted} messages.",
@@ -1533,72 +1519,90 @@ def send_message(
         )
         return jsonify({"error": "Message spam detected", "code": "message-spam"}), 429
 
-    Collections["message_attempts"].insert_one(
-        {"username": username, "ip": ip, "timestamp": current_time}
+    Collections["message_attempts"].insert_one({
+        "username": username, "ip": ip, "timestamp": current_time
+    })
+
+    # Convert Markdown -> HTML, then sanitize
+    raw = message_content.strip()
+    md_html = markdown.markdown(
+        raw,
+        extensions=[
+            'extra',
+            'sane_lists',
+            'codehilite',
+        ]
     )
-    sanitized_message = html.escape(message_content.strip())
+    allowed_tags = [
+        'p', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote'
+    ]
+    allowed_attrs = {
+        'a': ['href', 'title', 'target'],
+    }
+    sanitized_message = bleach.clean(
+        md_html,
+        tags=allowed_tags,
+        attributes=allowed_attrs,
+        strip=True
+    )
+
     if not sanitized_message:
         return jsonify({"error": "Message empty", "code": "empty-message"}), 400
     if len(sanitized_message) > 200:
         return jsonify({"error": "Message too long", "code": "message-too-long"}), 400
 
+    # Profanity filter
     if profanity.contains_profanity(sanitized_message):
-        Collections["messages"].insert_one(
-            {
-                "id": str(uuid4()),
-                "room": room_name,
-                "username": "Message Blocked",
-                "message": f"Message from <b>{username}</b> was blocked due to profanity. Message: <b>{sanitized_message}</b>",
-                "timestamp": time.time(),
-                "badges": ["❌"],
-                "type": "system",
-                "visibility": [username]
-            }
-        )
+        Collections["messages"].insert_one({
+            "id": str(uuid4()),
+            "room": room_name,
+            "username": "Message Blocked",
+            "message": (
+                f"Message from <b>{username}</b> was blocked due to profanity. "
+                f"Message: <b>{sanitized_message}</b>"
+            ),
+            "timestamp": time.time(),
+            "badges": ["❌"],
+            "type": "system",
+            "visibility": [username],
+        })
         return jsonify({"success": True})
 
+    # Command handling or regular message
     if sanitized_message.startswith("/"):
         system_message = parse_command(username, sanitized_message, room_name)
         if system_message:
-            Collections["messages"].insert_one(
-                {
-                    "id": str(uuid4()),
-                    "room": room_name,
-                    "username": "Command Handler",
-                    "message": system_message,
-                    "timestamp": time.time(),
-                    "badges": ["⚙️"],
-                    "type": "system",
-                    "visibility": []
-                }
-            )
-    else:
-        badges = []
-        if user["type"] == "mod":
-            badges.append("🛡️")
-        elif user["type"] == "admin":
-            badges.append("🛠️")
-        elif user["type"] == "media":
-            badges.append("🎥")
-
-        if has_proplus(username):
-            badges.append("🌟")
-        elif has_pro(username):
-            badges.append("⭐")
-
-        Collections["messages"].insert_one(
-            {
+            Collections["messages"].insert_one({
                 "id": str(uuid4()),
                 "room": room_name,
-                "username": username,
-                "message": sanitized_message,
+                "username": "Command Handler",
+                "message": system_message,
                 "timestamp": time.time(),
-                "nameplate": user.get("equipped_nameplate", None),
-                "messageplate": user.get("equipped_messageplate", None),
-                "badges": badges,
-                "type": user["type"],
-            }
-        )
+                "badges": ["⚙️"],
+                "type": "system",
+                "visibility": []
+            })
+    else:
+        badges = []
+        t = user.get("type")
+        if t == "mod":      badges.append("🛡️")
+        elif t == "admin":  badges.append("🛠️")
+        elif t == "media":  badges.append("🎥")
+        if has_proplus(username): badges.append("🌟")
+        elif has_pro(username):    badges.append("⭐")
+
+        Collections["messages"].insert_one({
+            "id": str(uuid4()),
+            "room": room_name,
+            "username": username,
+            "message": sanitized_message,
+            "timestamp": time.time(),
+            "nameplate": user.get("equipped_nameplate"),
+            "messageplate": user.get("equipped_messageplate"),
+            "badges": badges,
+            "type": t,
+        })
+
     return jsonify({"success": True})
 
 
