@@ -1537,7 +1537,7 @@ def send_message(
                 "type": "system",
                 "visibility": [username],
             })
-        return
+        return jsonify({"success": True})
 
     # Convert Markdown -> HTML, then sanitize
     raw = message_content.strip()
@@ -1584,40 +1584,25 @@ def send_message(
         })
         return jsonify({"success": True})
 
-    # Command handling or regular message
-    if sanitized_message.startswith("/"):
-        system_message = parse_command(username, sanitized_message, room_name)
-        if system_message:
-            Collections["messages"].insert_one({
-                "id": str(uuid4()),
-                "room": room_name,
-                "username": "Command Handler",
-                "message": system_message,
-                "timestamp": time.time(),
-                "badges": ["⚙️"],
-                "type": "system",
-                "visibility": []
-            })
-    else:
-        badges = []
-        t = user.get("type")
-        if t == "mod":      badges.append("🛡️")
-        elif t == "admin":  badges.append("🛠️")
-        elif t == "media":  badges.append("🎥")
-        if has_proplus(username): badges.append("🌟")
-        elif has_pro(username):    badges.append("⭐")
+    badges = []
+    t = user.get("type")
+    if t == "mod":      badges.append("🛡️")
+    elif t == "admin":  badges.append("🛠️")
+    elif t == "media":  badges.append("🎥")
+    if has_proplus(username): badges.append("🌟")
+    elif has_pro(username):    badges.append("⭐")
 
-        Collections["messages"].insert_one({
-            "id": str(uuid4()),
-            "room": room_name,
-            "username": username,
-            "message": sanitized_message,
-            "timestamp": time.time(),
-            "nameplate": user.get("equipped_nameplate"),
-            "messageplate": user.get("equipped_messageplate"),
-            "badges": badges,
-            "type": t,
-        })
+    Collections["messages"].insert_one({
+        "id": str(uuid4()),
+        "room": room_name,
+        "username": username,
+        "message": sanitized_message,
+        "timestamp": time.time(),
+        "nameplate": user.get("equipped_nameplate"),
+        "messageplate": user.get("equipped_messageplate"),
+        "badges": badges,
+        "type": t,
+    })
 
     return jsonify({"success": True})
 
