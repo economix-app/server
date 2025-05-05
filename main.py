@@ -1327,14 +1327,14 @@ def parse_command(username: str, command: str, room_name: str) -> str:
     # Help on selectors
     if cmd == "help_selectors" and is_mod:
         return (
-            "Selector syntax:\n"
-            "*                     => all users\n"
-            "*-alice               => all except 'alice'\n"
-            "*suffix               => usernames ending with 'suffix'\n"
-            "prefix*               => usernames starting with 'prefix'\n"
-            "user1+user2           => multiple users\n"
-            "[type=admin]          => filter by attribute\n"
-            "[type=!mod,banned=false] => multiple filters\n"
+            "<h3>Selector syntax:</h3>"
+            "<p>* => all users</p>"
+            "<p>*-alice => all except 'alice'</p>"
+            "<p>*suffix => usernames ending with 'suffix'</p>"
+            "<p>prefix* => usernames starting with 'prefix'</p>"
+            "<p>user1+user2 => multiple users</p>"
+            "<p>[type=admin] => filter by attribute</p>"
+            "<p>[type=!mod,banned=false] => multiple filters</p>"
         )
 
     # /sudo now supports selectors
