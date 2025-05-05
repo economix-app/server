@@ -1433,6 +1433,7 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         <p>/unmute [username] - Unmutes a user</p>
         <p>/list_banned - Lists banned users</p>
         <p>/help - Shows this help</p>
+        <p>/help_selectors - Shows info about selectors</p>
         """
 
     elif cmd == "msg" and len(args) >= 2:
