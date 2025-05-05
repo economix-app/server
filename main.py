@@ -1523,6 +1523,22 @@ def send_message(
         "username": username, "ip": ip, "timestamp": current_time
     })
 
+    # Command handling
+    if message_content.startswith("/"):
+        system_message = parse_command(username, message_content[1:], room_name)
+        if system_message:
+            Collections["messages"].insert_one({
+                "id": str(uuid4()),
+                "room": room_name,
+                "username": "Command Handler",
+                "message": system_message,
+                "timestamp": time.time(),
+                "badges": ["⚙️"],
+                "type": "system",
+                "visibility": [username],
+            })
+        return
+
     # Convert Markdown -> HTML, then sanitize
     raw = message_content.strip()
     md_html = markdown.markdown(
