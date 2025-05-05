@@ -35,7 +35,7 @@ TOKEN_MINE_COOLDOWN = 180  # 3 minutes
 MAX_ITEM_PRICE = 1000 * 100  # 100 thousand
 MIN_ITEM_PRICE = 1
 
-DEBUG_MODE = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+DEBUG_MODE = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
 
 # Application Setup
 app = Flask(__name__)
@@ -1525,7 +1525,7 @@ def send_message(
 
     # Command handling
     if message_content.startswith("/"):
-        system_message = parse_command(username, message_content[1:], room_name)
+        system_message = parse_command(username, message_content, room_name)
         if system_message:
             Collections["messages"].insert_one({
                 "id": str(uuid4()),
