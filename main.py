@@ -1242,6 +1242,79 @@ def get_user(username: str) -> Tuple[dict, int]:
     user = Collections["users"].find_one({"username": username}, {"_id": 0})
     return jsonify(user)
 
+def expand_targets(spec: str):
+    # Parse optional filter bracket
+    base_part = spec
+    filter_part = None
+    m = re.match(r"^(.+?)(\[(.+)\])?$", spec)
+    if m:
+        base_part = m.group(1)
+        filter_part = m.group(3)
+
+    # Determine initial set of usernames
+    targets = []
+    parts = base_part.split("+")
+    for part in parts:
+        part = part.strip()
+        if part == "*":
+            # all users
+            cursor = Collections["users"].find({}, {"username": 1})
+            targets.extend(u["username"] for u in cursor)
+        elif part.startswith("*-"):
+            # exclude a specific user from all
+            excl = part[2:]
+            cursor = Collections["users"].find({"username": {"$ne": excl}}, {"username": 1})
+            targets.extend(u["username"] for u in cursor)
+        elif part.startswith("*"):
+            # suffix wildcard: usernames ending with given suffix
+            suffix = part[1:]
+            cursor = Collections["users"].find({"username": {"$regex": f"{re.escape(suffix)}$"}}, {"username": 1})
+            targets.extend(u["username"] for u in cursor)
+        elif part.endswith("*"):
+            # prefix wildcard: usernames starting with given prefix
+            prefix = part[:-1]
+            cursor = Collections["users"].find({"username": {"$regex": f"^{re.escape(prefix)}"}}, {"username": 1})
+            targets.extend(u["username"] for u in cursor)
+        else:
+            # literal username
+            targets.append(part)
+
+    # Deduplicate
+    targets = list(set(targets))
+
+    # Apply filters if present
+    if filter_part:
+        filters = [f.strip() for f in filter_part.split(",")]
+        def passes_filters(user):
+            for f in filters:
+                if "=" not in f:
+                    continue
+                key, val = f.split("=", 1)
+                negate = val.startswith('!')
+                val_clean = val[1:] if negate else val
+                attr = user.get(key)
+                # convert booleans
+                if isinstance(attr, bool):
+                    cmp = str(attr).lower() == val_clean.lower()
+                else:
+                    cmp = str(attr) == val_clean
+                if negate and cmp:
+                    return False
+                if not negate and not cmp:
+                    return False
+            return True
+
+        filtered = []
+        for uname in targets:
+            user = Collections["users"].find_one({"username": uname})
+            if not user:
+                continue
+            if passes_filters(user):
+                filtered.append(uname)
+        targets = filtered
+
+    return targets
+
 
 def parse_command(username: str, command: str, room_name: str) -> str:
     user = Collections["users"].find_one({"username": username})
@@ -1251,63 +1324,35 @@ def parse_command(username: str, command: str, room_name: str) -> str:
     parts = command[1:].split(" ")
     cmd, *args = parts
 
-    if cmd == "clear_chat" and is_admin:
-        Collections["messages"].delete_many({"room": room_name})
-        return f"Cleared chat in <b>{room_name}</b>"
-    elif cmd == "clear_user" and len(args) == 1 and is_admin:
-        Collections["messages"].delete_many({"room": room_name, "username": args[0]})
-        return f"Deleted messages from <b>{args[0]}</b> in <b>{room_name}</b>"
-    elif cmd == "delete_many" and len(args) == 1 and is_admin:
-        try:
-            amount = int(args[0])
-            messages = (
-                Collections["messages"]
-                .find({"room": room_name})
-                .sort("timestamp", DESCENDING)
-                .limit(amount)
-            )
-            ids = [doc["_id"] for doc in messages]
-            Collections["messages"].delete_many({"_id": {"$in": ids}})
-            return f"Deleted <b>{amount}</b> messages from <b>{room_name}</b>"
-        except ValueError:
-            return "Invalid amount specified"
-    elif cmd == "ban" and len(args) >= 3 and is_admin:
-        target, duration, *reason = args
-        ban_user(target, duration, " ".join(reason))
+    # Help on selectors
+    if cmd == "help_selectors" and is_mod:
         return (
-            f"Banned <b>{target}</b> for <b>{' '.join(reason)}</b> (<b>{duration}</b>)"
+            "Selector syntax:\n"
+            "*                     => all users\n"
+            "*-alice               => all except 'alice'\n"
+            "*suffix               => usernames ending with 'suffix'\n"
+            "prefix*               => usernames starting with 'prefix'\n"
+            "user1+user2           => multiple users\n"
+            "[type=admin]          => filter by attribute\n"
+            "[type=!mod,banned=false] => multiple filters\n"
         )
-    elif cmd == "mute" and len(args) == 2 and is_mod:
-        mute_user(args[0], args[1])
-        return f"Muted <b>{args[0]}</b> for <b>{args[1]}</b>"
-    elif cmd == "unban" and len(args) == 1 and is_admin:
-        Collections["users"].update_one(
-            {"username": args[0]}, {"$set": {"banned": False}}
-        )
-        return f"Unbanned <b>{args[0]}</b>"
-    elif cmd == "unmute" and len(args) == 1 and is_mod:
-        unmute_user(args[0])
-        return f"Unmuted <b>{args[0]}</b>"
-    elif cmd == "sudo" and len(args) >= 2 and is_admin:
-        sudo_user = args[0]
-        message = " ".join(args[1:])
-        user_data = Collections["users"].find_one({"username": sudo_user})
-        if not user_data:
-            return f"User <b>{sudo_user}</b> not found"
-        badges = []
-        if user_data["type"] == "mod":
-            badges.append("🛡️")
-        elif user_data["type"] == "admin":
-            badges.append("🛠️")
-        elif user_data["type"] == "media":
-            badges.append("🎥")
 
-        if has_proplus(sudo_user):
-            badges.append("🌟")
-        elif has_pro(sudo_user):
-            badges.append("⭐")
-        Collections["messages"].insert_one(
-            {
+    # /sudo now supports selectors
+    if cmd == "sudo" and len(args) >= 2 and is_admin:
+        target_spec, *msg_parts = args
+        targets = expand_targets(target_spec)
+        message = " ".join(msg_parts)
+        for sudo_user in targets:
+            user_data = Collections["users"].find_one({"username": sudo_user})
+            if not user_data:
+                continue
+            badges = []
+            if user_data["type"] == "mod": badges.append("🛡️")
+            if user_data["type"] == "admin": badges.append("🛠️")
+            if user_data["type"] == "media": badges.append("🎥")
+            if has_proplus(sudo_user): badges.append("🌟")
+            elif has_pro(sudo_user): badges.append("⭐")
+            Collections["messages"].insert_one({
                 "id": str(uuid4()),
                 "room": room_name,
                 "username": sudo_user,
@@ -1315,55 +1360,98 @@ def parse_command(username: str, command: str, room_name: str) -> str:
                 "timestamp": time.time(),
                 "badges": badges,
                 "type": user_data["type"],
-                "messageplate": user_data.get("equipped_messageplate", None),
-                "nameplate": user_data.get("equipped_nameplate", None),
-            }
-        )
-        return None
+                "messageplate": user_data.get("equipped_messageplate"),
+                "nameplate": user_data.get("equipped_nameplate"),
+            })
+        return f"Sudoed <b>{', '.join(targets)}</b>"
+
+    if cmd == "clear_chat" and is_admin:
+        Collections["messages"].delete_many({"room": room_name})
+        return f"Cleared chat in <b>{room_name}</b>"
+
+    elif cmd == "clear_user" and len(args) == 1 and is_admin:
+        targets = expand_targets(args[0])
+        for t in targets:
+            Collections["messages"].delete_many({"room": room_name, "username": t})
+        return f"Deleted messages from <b>{', '.join(targets)}</b> in <b>{room_name}</b>"
+
+    elif cmd == "delete_many" and len(args) == 1 and is_admin:
+        try:
+            amount = int(args[0])
+            messages = Collections["messages"].find({"room": room_name}).sort("timestamp", -1).limit(amount)
+            ids = [doc["_id"] for doc in messages]
+            Collections["messages"].delete_many({"_id": {"$in": ids}})
+            return f"Deleted <b>{amount}</b> messages from <b>{room_name}</b>"
+        except ValueError:
+            return "Invalid amount specified"
+
+    elif cmd == "ban" and len(args) >= 3 and is_admin:
+        target_spec, duration, *reason = args
+        targets = expand_targets(target_spec)
+        for t in targets:
+            ban_user(t, duration, " ".join(reason))
+        return f"Banned <b>{', '.join(targets)}</b> for <b>{' '.join(reason)}</b> (<b>{duration}</b>)"
+
+    elif cmd == "unban" and len(args) == 1 and is_admin:
+        targets = expand_targets(args[0])
+        for t in targets:
+            Collections["users"].update_one({"username": t}, {"$set": {"banned": False}})
+        return f"Unbanned <b>{', '.join(targets)}</b>"
+
+    elif cmd == "mute" and len(args) == 2 and is_mod:
+        target_spec, duration = args
+        targets = expand_targets(target_spec)
+        for t in targets:
+            mute_user(t, duration)
+        return f"Muted <b>{', '.join(targets)}</b> for <b>{duration}</b>"
+
+    elif cmd == "unmute" and len(args) == 1 and is_mod:
+        targets = expand_targets(args[0])
+        for t in targets:
+            unmute_user(t)
+        return f"Unmuted <b>{', '.join(targets)}</b>"
+
     elif cmd == "list_banned" and is_mod:
         banned = Collections["users"].find({"banned": True})
         banned_list = [
-            f"<p><b>{u['username']}</b> - Reason: {u.get('banned_reason', 'No reason')} | Until: {u.get("banned_until")} (Zero = Perma)</p>"
-            for u in banned
+            f"<p><b>{u['username']}</b> - Reason: {u.get('banned_reason', 'No reason')} | Until: {u.get('banned_until')}" for u in banned
         ]
-        return (
-            "Banned users:\n" + "".join(banned_list)
-            if banned_list
-            else "Nobody is banned."
-        )
+        return "Nobody is banned." if not banned_list else "Banned users:<br>" + "<br>".join(banned_list)
+
     elif cmd == "help" and is_mod:
-        return """
-        <h3>Available Commands:</h3>
-        <h4>Admin</h4>
-        <p>/clear_chat - Clears all messages in the current room</p>
-        <p>/clear_user [username] - Clears all messages from a specific user</p>
-        <p>/delete_many [amount] - Deletes specified number of messages</p>
-        <p>/ban [username] [duration] [reason] - Bans a user</p>
-        <p>/unban [username] - Unbans a user</p>
-        <p>/sudo [username] [message] - Sends message as user</p>
-        <h4>Admin & Mod</h4>
-        <p>/mute [username] [duration] - Mutes a user</p>
-        <p>/unmute [username] - Unmutes a user</p>
-        <p>/list_banned - Lists banned users</p>
-        <p>/help - Shows this help</p>
-        """
-    elif cmd == "msg" and len(args) >= 2:
-        recipient = args[0]
-        message = " ".join(args[1:])
-        Collections["messages"].insert_one(
-            {
-                "id": str(uuid4()),
-                "room": room_name,
-                "username": f"{username} -> {recipient}",
-                "message": message,
-                "timestamp": time.time(),
-                "badges": ["📩"],
-                "visibility": [username, recipient],
-                "type": "msg",
-            }
+        return (
+            "<h3>Available Commands:</h3>"
+            "<p>/help_selectors - Shows syntax for target selectors</p>"
+            "<p>/clear_chat - Clears all messages in the current room</p>"
+            "<p>/clear_user [targets] - Clears messages from specified user(s)</p>"
+            "<p>/delete_many [amount] - Deletes a number of recent messages</p>"
+            "<p>/ban [targets] [duration] [reason] - Bans user(s)</p>"
+            "<p>/unban [targets] - Unbans user(s)</p>"
+            "<p>/mute [targets] [duration] - Mutes user(s)</p>"
+            "<p>/unmute [targets] - Unmutes user(s)</p>"
+            "<p>/list_banned - Lists currently banned users</p>"
+            "<p>/help - Shows this help message</p>"
         )
+
+    elif cmd == "msg" and len(args) >= 2:
+        recipient, *msg = args
+        message = " ".join(msg)
+        Collections["messages"].insert_one({
+            "id": str(uuid4()),
+            "room": room_name,
+            "username": f"{username} -> {recipient}",
+            "message": message,
+            "timestamp": time.time(),
+            "badges": ["📩"],
+            "visibility": [username, recipient],
+            "type": "msg",
+        })
+        return f"Sent private message to <b>{recipient}</b>"
+
     else:
         return "Invalid command"
+
+
 
 
 def send_message(
@@ -1478,6 +1566,7 @@ def send_message(
                     "timestamp": time.time(),
                     "badges": ["⚙️"],
                     "type": "system",
+                    "visibility": []
                 }
             )
     else:
