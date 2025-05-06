@@ -1031,7 +1031,7 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         {"username": username}, {"$addToSet": {"badges": "video"}}
       )
       
-    if user["created_at"] <= EARLY_SUPPORTER_DEADLINE and "early" not in user.get("badges", []):
+    if user.get("created_at", time.time()) <= EARLY_SUPPORTER_DEADLINE and "early" not in user.get("badges", []):
       Collections["users"].update_one(
         {"username": username}, {"$addToSet": {"badges": "early"}}
       )
