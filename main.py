@@ -305,43 +305,59 @@ profanity.load_censor_words()
 
 # Index Creation
 def create_indexes():
-    Collections["users"].create_index([("username", ASCENDING)], unique=True)
-    Collections["items"].create_index([("id", ASCENDING), ("owner", ASCENDING)])
-    Collections["messages"].create_index(
-        [("room", ASCENDING), ("timestamp", ASCENDING)]
+    def ensure_index(coll, key_list, **kwargs):
+        existing_indexes = coll.index_information()
+        # Generate the default name MongoDB would use
+        default_name = "_".join([f"{field[0]}_{field[1]}" for field in key_list])
+        if kwargs.get("name"):
+            index_name = kwargs["name"]
+        else:
+            index_name = default_name
+        if index_name not in existing_indexes:
+            coll.create_index(key_list, **kwargs)
+
+    ensure_index(Collections["users"], [("username", ASCENDING)], unique=True)
+    ensure_index(Collections["items"], [("id", ASCENDING), ("owner", ASCENDING)])
+    ensure_index(
+        Collections["messages"], [("room", ASCENDING), ("timestamp", ASCENDING)]
     )
-    Collections["item_meta"].create_index([("id", ASCENDING)])
-    Collections["misc"].create_index([("type", ASCENDING)])
-    Collections["pets"].create_index([("id", ASCENDING)], unique=True)
-    Collections["account_creation_attempts"].create_index(
+    ensure_index(Collections["item_meta"], [("id", ASCENDING)])
+    ensure_index(Collections["misc"], [("type", ASCENDING)])
+    ensure_index(Collections["pets"], [("id", ASCENDING)], unique=True)
+    ensure_index(
+        Collections["account_creation_attempts"],
         [("timestamp", ASCENDING)],
         expireAfterSeconds=AUTOMOD_CONFIG["ACCOUNT_CREATION_TIME_WINDOW"],
     )
-    Collections["message_attempts"].create_index(
+    ensure_index(
+        Collections["message_attempts"],
         [("timestamp", ASCENDING)],
         expireAfterSeconds=AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"],
     )
-    Collections["blocked_ips"].create_index(
-        [("blocked_until", ASCENDING)], expireAfterSeconds=0
+    ensure_index(
+        Collections["blocked_ips"], [("blocked_until", ASCENDING)], expireAfterSeconds=0
     )
-    Collections["blocked_ips"].create_index([("ip", ASCENDING)])
-    Collections["failed_logins"].create_index(
+    ensure_index(Collections["blocked_ips"], [("ip", ASCENDING)])
+    ensure_index(
+        Collections["failed_logins"],
         [("timestamp", ASCENDING)],
         expireAfterSeconds=AUTOMOD_CONFIG["FAILED_LOGIN_WINDOW"],
     )
-    Collections["message_attempts"].create_index(
-        [("ip", ASCENDING), ("timestamp", ASCENDING)]
+    ensure_index(
+        Collections["message_attempts"], [("ip", ASCENDING), ("timestamp", ASCENDING)]
     )
-    Collections["user_history"].create_index([("username", ASCENDING)])
-    Collections["user_history"].create_index([("code", ASCENDING)])
-    Collections["auctions"].create_index([("item_id", ASCENDING)])
-    Collections["auctions"].create_index([("owner", ASCENDING)])
-    Collections["trades"].create_index(
-        [("offerOwner", ASCENDING), ("requestOwner", ASCENDING)]
+    ensure_index(Collections["user_history"], [("username", ASCENDING)])
+    ensure_index(Collections["user_history"], [("code", ASCENDING)])
+    ensure_index(Collections["auctions"], [("item_id", ASCENDING)])
+    ensure_index(Collections["auctions"], [("owner", ASCENDING)])
+    ensure_index(
+        Collections["trades"], [("offerOwner", ASCENDING), ("requestOwner", ASCENDING)]
     )
-    Collections["reports"].create_index([("id", ASCENDING)], unique=True)
-    Collections["pending_subscriptions"].create_index(
-        [("subscription_id", ASCENDING)], unique=True
+    ensure_index(Collections["reports"], [("id", ASCENDING)], unique=True)
+    ensure_index(
+        Collections["pending_subscriptions"],
+        [("subscription_id", ASCENDING)],
+        unique=True,
     )
 
 
