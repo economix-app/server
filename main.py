@@ -227,6 +227,40 @@ COSMETICS = {
     },
 }
 
+# Badges
+BADGES = {
+  "staff": {
+    "name": "Staff",
+    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tool"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" /></svg>"""
+  },
+  "shield": {
+    "name": "Moderator",
+    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-shield"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /></svg>"""
+  },
+  "code": {
+    "name": "Developer",
+    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-code"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 8l-4 4l4 4" /><path d="M17 8l4 4l-4 4" /><path d="M14 4l-4 16" /></svg>"""
+  },
+  "video": {
+    "name": "Creator",
+    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z" /><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" /></svg>"""
+  },
+  "early": {
+    "name": "Early Supporter",
+    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-timeline"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 16l6 -7l5 5l5 -6" /><path d="M15 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M10 9m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M4 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M20 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>"""
+  },
+  "pro": {
+    "name": "PRO",
+    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-star"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" /></svg>"""
+  },
+  "proplus": {
+    "name": "PRO+",
+    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-jewish-star"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 2l3 5h6l-3 5l3 5h-6l-3 5l-3 -5h-6l3 -5l-3 -5h6z" /></svg>"""
+  }
+}
+
+EARLY_SUPPORTER_DEADLINE = 1767186000
+
 
 @app.errorhandler(500)
 def internal_server_error(error):
@@ -538,7 +572,7 @@ def requires_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = Collections["users"].find_one({"username": request.username})
-        if user.get("type") != "admin":
+        if "admin" not in user.get("roles", []):
             return (
                 jsonify(
                     {"error": "Admin privileges required", "code": "admin-required"}
@@ -554,7 +588,7 @@ def requires_mod(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = Collections["users"].find_one({"username": request.username})
-        if user.get("type") not in ["admin", "mod"]:
+        if "mod" not in user.get("roles", []):
             return (
                 jsonify({"error": "Mod privileges required", "code": "mod-required"}),
                 403,
@@ -576,7 +610,7 @@ def requires_unbanned(f):
         if (
             downtime
             and downtime.get("enabled", False)
-            and user.get("type", "user") != "admin"
+            and "admin" not in user.get("roles", [])
         ):
             return (
                 jsonify(
@@ -918,6 +952,7 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
         "equipped_nameplate": None,
         "equipped_messageplate": None,
         "subscriptions": [],
+        "badges": [],
     }
     updates = {k: v for k, v in defaults.items() if k not in user}
     if updates:
@@ -965,6 +1000,41 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
             {"username": username},
             {"$push": {"cosmetics": "gold"}},
         )
+        
+    if user.get("type") == "admin" and "staff" not in user.get("badges", []):
+      Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"badges": "staff"}}
+      )
+      
+    if user.get("type") == "admin" and "shield" not in user.get("badges", []):
+      Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"badges": "shield"}}
+      )
+      
+    if user.get("type") == "admin" and "code" not in user.get("badges", []):
+      Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"badges": "code"}}
+      )
+      
+    if user.get("type") == "mod" and "shield" not in user.get("badges", []):
+      Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"badges": "shield"}}
+      )
+      
+    if user.get("type") == "dev" and "code" not in user.get("badges", []):
+      Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"badges": "code"}}
+      )
+      
+    if user.get("media", False) and "media" not in user.get("badges", []):
+      Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"badges": "video"}}
+      )
+      
+    if user["created_at"] <= EARLY_SUPPORTER_DEADLINE and "early" not in user.get("badges", []):
+      Collections["users"].update_one(
+        {"username": username}, {"$addToSet": {"badges": "early"}}
+      )
 
 
 # Item and Pet Generation
@@ -1176,6 +1246,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
             "equipped_messageplate": None,
             "equipped_nameplate": None,
             "subscriptions": [],
+            "badges": [],
         }
         Collections["users"].insert_one(user_data)
         Collections["account_creation_attempts"].insert_one(
@@ -1363,19 +1434,21 @@ def parse_command(username: str, command: str, room_name: str) -> str:
             user_data = Collections["users"].find_one({"username": sudo_user})
             if not user_data:
                 continue
-            badges = []
-            if user_data["type"] == "mod": badges.append("🛡️")
-            if user_data["type"] == "admin": badges.append("🛠️")
-            if user_data["type"] == "media": badges.append("🎥")
-            if has_proplus(sudo_user): badges.append("🌟")
-            elif has_pro(sudo_user): badges.append("⭐")
+            badges = user_data.get("badges", [])
+            if has_proplus(sudo_user): badges.append("proplus")
+            elif has_pro(sudo_user): badges.append("pro")
+            
+            new_badges = []
+            for badge in badges:
+                new_badges.append({"name": BADGES[badge]["name"], "icon": BADGES[badge]["icon"]})
+            
             Collections["messages"].insert_one({
                 "id": str(uuid4()),
                 "room": room_name,
                 "username": sudo_user,
                 "message": message,
                 "timestamp": time.time(),
-                "badges": badges,
+                "badges": new_badges,
                 "type": user_data["type"],
                 "messageplate": user_data.get("equipped_messageplate"),
                 "nameplate": user_data.get("equipped_nameplate"),
@@ -1600,13 +1673,14 @@ def send_message(
         })
         return jsonify({"success": True})
 
-    badges = []
-    t = user.get("type")
-    if t == "mod":      badges.append("🛡️")
-    elif t == "admin":  badges.append("🛠️")
-    elif t == "media":  badges.append("🎥")
-    if has_proplus(username): badges.append("🌟")
-    elif has_pro(username):    badges.append("⭐")
+    badges = user.get("badges", [])
+    if has_proplus(username): badges.append("proplus")
+    elif has_pro(username): badges.append("pro")
+    
+    new_badges = []
+    
+    for badge in badges:
+        new_badges.append({"name": BADGES[badge]["name"], "icon": BADGES[badge]["icon"]})
 
     Collections["messages"].insert_one({
         "id": str(uuid4()),
@@ -1616,8 +1690,8 @@ def send_message(
         "timestamp": time.time(),
         "nameplate": user.get("equipped_nameplate"),
         "messageplate": user.get("equipped_messageplate"),
-        "badges": badges,
-        "type": t,
+        "badges": new_badges,
+        "type": user["type"],
     })
 
     return jsonify({"success": True})
@@ -3787,6 +3861,30 @@ def set_downtime():
         0xFF0000,
     )
 
+    return jsonify({"success": True})
+
+@app.route("/api/add_badge", methods=["POST"])
+@requires_admin
+def add_badge_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    badge = data.get("badge")
+
+    if not username or not badge:
+      return jsonify({"error": "Missing username or badge"}), 400
+
+    user = Collections["users"].find_one({"username": username})
+    if not user:
+      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    Collections["users"].update_one(
+      {"username": username}, {"$addToSet": {"badges": badge}}
+    )
+    send_discord_notification(
+      "Badge Added",
+      f"Admin {request.username} added badge '{badge}' to {username}",
+      0x00FF00,
+    )
     return jsonify({"success": True})
 
 
