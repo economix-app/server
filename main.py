@@ -3966,6 +3966,30 @@ def add_badge_endpoint():
         0x00FF00,
     )
     return jsonify({"success": True})
+  
+@app.route("/api/remove_badge", methods=["POST"])
+@requires_admin
+def remove_badge_endpoint():
+    data = request.get_json()
+    username = data.get("username")
+    badge = data.get("badge")
+
+    if not username or not badge:
+        return jsonify({"error": "Missing username or badge"}), 400
+
+    user = Collections["users"].find_one({"username": username})
+    if not user:
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    Collections["users"].update_one(
+        {"username": username}, {"$pull": {"badges": badge}}
+    )
+    send_discord_notification(
+        "Badge Removed",
+        f"Admin {request.username} removed badge '{badge}' from {username}",
+        0xFF0000,
+    )
+    return jsonify({"success": True})
 
 
 @app.route("/stripe_webhook", methods=["POST"])
