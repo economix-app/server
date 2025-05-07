@@ -231,35 +231,39 @@ COSMETICS = {
 BADGES = {
     "staff": {
         "name": "Staff",
-        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-tools"><path stroke="#2563eb" d="M3 21h4L20 8a1.5 1.5 0 0 0-4-4L3 17zM14.5 5.5l4 4"/><path stroke="#2563eb" d="M12 8 7 3 3 7l5 5M7 8 5.5 9.5M16 12l5 5-4 4-5-5m4 1-1.5 1.5"/></svg>""",
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-tools"><path stroke="#2563eb" d="M3 21h4L20 8a1.5 1.5 0 0 0-4-4L3 17zM14.5 5.5l4 4"/><path stroke="#2563eb" d="M12 8 7 3 3 7l5 5M7 8 5.5 9.5M16 12l5 5-4 4-5-5m4 1-1.5 1.5"/></svg',
     },
     "shield": {
         "name": "Moderator",
-        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="icon icon-tabler icons-tabler-filled icon-tabler-shield-half"><path fill="#2563eb" d="m11.998 2 .032.002.086.005a1 1 0 0 1 .342.104l.105.062.097.076.016.015.247.21a11 11 0 0 0 7.189 2.537l.342-.01a1 1 0 0 1 1.005.717 13 13 0 0 1-9.208 16.25 1 1 0 0 1-.502 0A13 13 0 0 1 2.54 5.718a1 1 0 0 1 1.005-.717 11 11 0 0 0 7.791-2.75l.046-.036.053-.041a1 1 0 0 1 .217-.112l.075-.023.036-.01a1 1 0 0 1 .12-.022l.086-.005zM12 4.296l-.176.135a13 13 0 0 1-7.288 2.572l-.264.006-.064.31a11 11 0 0 0 1.064 7.175l.17.314a11 11 0 0 0 6.49 5.136l.068.019z"/></svg>""",
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="icon icon-tabler icons-tabler-filled icon-tabler-shield-half"><path fill="#2563eb" d="m11.998 2 .032.002.086.005a1 1 0 0 1 .342.104l.105.062.097.076.016.015.247.21a11 11 0 0 0 7.189 2.537l.342-.01a1 1 0 0 1 1.005.717 13 13 0 0 1-9.208 16.25 1 1 0 0 1-.502 0A13 13 0 0 1 2.54 5.718a1 1 0 0 1 1.005-.717 11 11 0 0 0 7.791-2.75l.046-.036.053-.041a1 1 0 0 1 .217-.112l.075-.023.036-.01a1 1 0 0 1 .12-.022l.086-.005zM12 4.296l-.176.135a13 13 0 0 1-7.288 2.572l-.264.006-.064.31a11 11 0 0 0 1.064 7.175l.17.314a11 11 0 0 0 6.49 5.136l.068.019z"/></svg',
     },
     "code": {
         "name": "Developer",
-        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-code"><path stroke="#2563eb" d="m7 8-4 4 4 4m10-8 4 4-4 4"/><path stroke="#bd1fdd" d="m14 4-4 16"/></svg>""",
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-code"><path stroke="#2563eb" d="m7 8-4 4 4 4m10-8 4 4-4 4"/><path stroke="#bd1fdd" d="m14 4-4 16"/></svg',
     },
     "video": {
         "name": "Creator",
-        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path d="M0 0h24v24H0z" fill="none"/><path fill="#F47B67" d="m15 10 4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14zM3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>""",
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path d="M0 0h24v24H0z" fill="none"/><path fill="#F47B67" d="m15 10 4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14zM3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg',
     },
     "legacy_video": {
         "name": "Legacy Creator",
-        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path fill="#9C84EF" d="m15 10 4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14zM3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path fill="#FBB748" d="M5.083 1.839 6.68 4.341l1.998-1.668-.8 4.169h-5.59l-.799-4.169 1.997 1.668z" style="transform-origin:5.083px 4.341px 0" transform="rotate(-15)"/></svg>""",
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path fill="#9C84EF" d="m15 10 4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14zM3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path fill="#FBB748" d="M5.083 1.839 6.68 4.341l1.998-1.668-.8 4.169h-5.59l-.799-4.169 1.997 1.668z" style="transform-origin:5.083px 4.341px 0" transform="rotate(-15)"/></svg',
     },
     "early": {
         "name": "Early Supporter",
-        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 375 375" version="1.0"><defs><clipPath id="a"><path d="M28 165h179v181H28Zm0 0"/></clipPath><clipPath id="b"><path d="M-8.914 193.48 117.922 76.25l174.902 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="c"><path d="M-8.914 193.48 117.922 76.25l174.902 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="d"><path d="M119 81h179v181H119Zm0 0"/></clipPath><clipPath id="e"><path d="M82.254 109.219 209.09-8.011l174.898 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="f"><path d="M82.254 109.219 209.09-8.011l174.898 189.23-126.836 117.23Zm0 0"/></clipPath></defs><g clip-path="url(#a)"><g clip-path="url(#b)"><g clip-path="url(#c)"><path fill="#18cb96" d="m206.484 172.457-154.03-6.848c-29.755-1.32-34.778 56.633.472 57.59l95.847 2.598-7.32 96.441c-2.23 29.367 55.047 32.469 56.684 2.621Zm0 0"/></g></g></g><g clip-path="url(#d)"><g clip-path="url(#e)"><g clip-path="url(#f)"><path fill="#18cb96" d="m297.648 88.195-154.03-6.847c-29.75-1.32-34.774 56.632.476 57.59l95.844 2.593-7.32 96.446c-2.227 29.367 55.046 32.468 56.683 2.62Zm0 0"/></g></g></g></svg>""",
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 375 375" version="1.0"><defs><clipPath id="a"><path d="M28 165h179v181H28Zm0 0"/></clipPath><clipPath id="b"><path d="M-8.914 193.48 117.922 76.25l174.902 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="c"><path d="M-8.914 193.48 117.922 76.25l174.902 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="d"><path d="M119 81h179v181H119Zm0 0"/></clipPath><clipPath id="e"><path d="M82.254 109.219 209.09-8.011l174.898 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="f"><path d="M82.254 109.219 209.09-8.011l174.898 189.23-126.836 117.23Zm0 0"/></clipPath></defs><g clip-path="url(#a)"><g clip-path="url(#b)"><g clip-path="url(#c)"><path fill="#18cb96" d="m206.484 172.457-154.03-6.848c-29.755-1.32-34.778 56.633.472 57.59l95.847 2.598-7.32 96.441c-2.23 29.367 55.047 32.469 56.684 2.621Zm0 0"/></g></g></g><g clip-path="url(#d)"><g clip-path="url(#e)"><g clip-path="url(#f)"><path fill="#18cb96" d="m297.648 88.195-154.03-6.847c-29.75-1.32-34.774 56.632.476 57.59l95.844 2.593-7.32 96.446c-2.227 29.367 55.046 32.468 56.683 2.62Zm0 0"/></g></g></g></svg',
     },
     "pro": {
         "name": "PRO",
-        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><path fill="#FFAC33" d="M27.287 34.627c-.404 0-.806-.124-1.152-.371L18 28.422l-8.135 5.834a1.97 1.97 0 0 1-2.312-.008 1.97 1.97 0 0 1-.721-2.194l3.034-9.792-8.062-5.681a1.98 1.98 0 0 1-.708-2.203 1.98 1.98 0 0 1 1.866-1.363L12.947 13l3.179-9.549a1.976 1.976 0 0 1 3.749 0L23 13l10.036.015a1.975 1.975 0 0 1 1.159 3.566l-8.062 5.681 3.034 9.792a1.97 1.97 0 0 1-.72 2.194 1.96 1.96 0 0 1-1.16.379"/></svg>""",
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><path fill="#FFAC33" d="M27.287 34.627c-.404 0-.806-.124-1.152-.371L18 28.422l-8.135 5.834a1.97 1.97 0 0 1-2.312-.008 1.97 1.97 0 0 1-.721-2.194l3.034-9.792-8.062-5.681a1.98 1.98 0 0 1-.708-2.203 1.98 1.98 0 0 1 1.866-1.363L12.947 13l3.179-9.549a1.976 1.976 0 0 1 3.749 0L23 13l10.036.015a1.975 1.975 0 0 1 1.159 3.566l-8.062 5.681 3.034 9.792a1.97 1.97 0 0 1-.72 2.194 1.96 1.96 0 0 1-1.16.379"/></svg',
     },
     "proplus": {
         "name": "PRO+",
-        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><path fill="#FFAC33" d="M28.84 17.638c-.987 1.044-1.633 3.067-1.438 4.493l.892 6.441c.197 1.427-.701 2.087-1.996 1.469l-5.851-2.796c-1.295-.62-3.408-.611-4.7.018l-5.826 2.842c-1.291.629-2.193-.026-2.007-1.452l.843-6.449c.186-1.427-.475-3.444-1.47-4.481l-4.494-4.688c-.996-1.037-.655-2.102.755-2.365l6.37-1.188c1.41-.263 3.116-1.518 3.793-2.789L16.762.956c.675-1.271 1.789-1.274 2.473-.009L22.33 6.66c.686 1.265 2.4 2.507 3.814 2.758l6.378 1.141c1.412.252 1.761 1.314.774 2.359z"/><path fill="#FFD983" d="M9.783 2.181c1.023 1.413 2.446 4.917 1.717 5.447-.728.531-3.607-1.91-4.63-3.323s-.935-2.668-.131-3.254c.804-.587 2.02-.282 3.044 1.13m19.348 2.124C28.109 5.718 25.23 8.16 24.5 7.627c-.729-.53.695-4.033 1.719-5.445C27.242.768 28.457.463 29.262 1.051c.803.586.89 1.841-.131 3.254M16.625 33.291c-.001-1.746.898-5.421 1.801-5.421.897 0 1.798 3.675 1.797 5.42 0 1.747-.804 2.712-1.8 2.71-.994.002-1.798-.962-1.798-2.709m16.179-9.262c-1.655-.539-4.858-2.533-4.579-3.395.277-.858 4.037-.581 5.69-.041 1.655.54 2.321 1.605 2.013 2.556-.308.95-1.469 1.42-3.124.88M2.083 20.594c1.655-.54 5.414-.817 5.694.044.276.857-2.928 2.854-4.581 3.392-1.654.54-2.818.07-3.123-.88-.308-.95.354-2.015 2.01-2.556"/></svg>""",
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><path fill="#FFAC33" d="M28.84 17.638c-.987 1.044-1.633 3.067-1.438 4.493l.892 6.441c.197 1.427-.701 2.087-1.996 1.469l-5.851-2.796c-1.295-.62-3.408-.611-4.7.018l-5.826 2.842c-1.291.629-2.193-.026-2.007-1.452l.843-6.449c.186-1.427-.475-3.444-1.47-4.481l-4.494-4.688c-.996-1.037-.655-2.102.755-2.365l6.37-1.188c1.41-.263 3.116-1.518 3.793-2.789L16.762.956c.675-1.271 1.789-1.274 2.473-.009L22.33 6.66c.686 1.265 2.4 2.507 3.814 2.758l6.378 1.141c1.412.252 1.761 1.314.774 2.359z"/><path fill="#FFD983" d="M9.783 2.181c1.023 1.413 2.446 4.917 1.717 5.447-.728.531-3.607-1.91-4.63-3.323s-.935-2.668-.131-3.254c.804-.587 2.02-.282 3.044 1.13m19.348 2.124C28.109 5.718 25.23 8.16 24.5 7.627c-.729-.53.695-4.033 1.719-5.445C27.242.768 28.457.463 29.262 1.051c.803.586.89 1.841-.131 3.254M16.625 33.291c-.001-1.746.898-5.421 1.801-5.421.897 0 1.798 3.675 1.797 5.42 0 1.747-.804 2.712-1.8 2.71-.994.002-1.798-.962-1.798-2.709m16.179-9.262c-1.655-.539-4.858-2.533-4.579-3.395.277-.858 4.037-.581 5.69-.041 1.655.54 2.321 1.605 2.013 2.556-.308.95-1.469 1.42-3.124.88M2.083 20.594c1.655-.54 5.414-.817 5.694.044.276.857-2.928 2.854-4.581 3.392-1.654.54-2.818.07-3.123-.88-.308-.95.354-2.015 2.01-2.556"/></svg',
+    },
+    "system": {
+        "name": "System",
+        "icon": '<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>',
     },
 }
 
@@ -561,10 +565,11 @@ def send_discord_notification(title: str, description: str, color: int = 0x00FF0
         Collections["messages"].insert_one(
             {
                 "room": "logs",
-                "username": "AutoMod",
+                "username": "Logs",
                 "message": description,
                 "timestamp": int(time.time()),
                 "type": "system",
+                "badges": [BADGES["system"]],
             }
         )
 
@@ -1212,6 +1217,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
             <p>IP: <b>{ip}</b> has been blocked for <b>{AUTOMOD_CONFIG['ACCOUNT_CREATION_BLOCK_DURATION']} seconds</b></p>
             """,
                 "timestamp": current_time,
+                "badges": [BADGES["system"]],
                 "type": "system",
             }
         )
@@ -1649,12 +1655,7 @@ def send_message(
                     f"<p>User: <b>{username}</b> has been muted for <b>{mute_duration}</b></p>"
                 ),
                 "timestamp": current_time,
-                "badges": [
-                    {
-                        "name": "System",
-                        "icon": '<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>',
-                    }
-                ],
+                "badges": [BADGES["system"]],
                 "type": "system",
             }
         )
@@ -1681,10 +1682,7 @@ def send_message(
                     "message": system_message,
                     "timestamp": time.time(),
                     "badges": [
-                        {
-                            "name": "System",
-                            "icon": '<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>',
-                        }
+                        BADGES["system"],
                     ],
                     "type": "system",
                     "visibility": [username],
@@ -1738,7 +1736,7 @@ def send_message(
                     f"Message: <b>{sanitized_message}</b>"
                 ),
                 "timestamp": time.time(),
-                "badges": ["❌"],
+                "badges": [],
                 "type": "system",
                 "visibility": [username],
             }
@@ -2166,34 +2164,6 @@ def delete_account_endpoint():
     user = Collections["users"].find_one({"username": request.username})
     if not user:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
-
-    # Check for suspicious token transfers before deletion
-    recent_transfers = Collections["messages"].count_documents(
-        {
-            "room": "logs",
-            "username": request.username,
-            "type": "system",
-            "timestamp": {
-                "$gt": time.time() - AUTOMOD_CONFIG["EXPLOIT_DETECTION_TIME_WINDOW"]
-            },
-            "message": {"$regex": "sent .* tokens"},
-        }
-    )
-    if recent_transfers > 0:
-        send_discord_notification(
-            "Suspicious Account Deletion",
-            f"User {request.username} attempted to delete their account after transferring tokens.",
-            0xFF0000,
-        )
-        return (
-            jsonify(
-                {
-                    "error": "Suspicious activity detected. Account deletion blocked.",
-                    "code": "suspicious-deletion",
-                }
-            ),
-            403,
-        )
 
     for sub in user.get("subscriptions", []):
         if sub["status"] == "active":
@@ -3966,7 +3936,8 @@ def add_badge_endpoint():
         0x00FF00,
     )
     return jsonify({"success": True})
-  
+
+
 @app.route("/api/remove_badge", methods=["POST"])
 @requires_admin
 def remove_badge_endpoint():
