@@ -576,7 +576,7 @@ def requires_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = Collections["users"].find_one({"username": request.username})
-        if "admin" not in user.get("roles", []):
+        if not user.get("type") == "admin":
             return (
                 jsonify(
                     {"error": "Admin privileges required", "code": "admin-required"}
@@ -592,7 +592,7 @@ def requires_mod(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = Collections["users"].find_one({"username": request.username})
-        if "mod" not in user.get("roles", []):
+        if not user.get("type") in ["admin", "mod"]:
             return (
                 jsonify({"error": "Mod privileges required", "code": "mod-required"}),
                 403,
