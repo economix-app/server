@@ -247,7 +247,7 @@ BADGES = {
     },
     "legacy_video": {
         "name": "Legacy Creator",
-        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path fill="#9C84EF" d="m15 10 4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14zM3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path fill="#FBB748" d="M5.083 1.839 6.68 4.341l1.998-1.668-.8 4.169h-5.59l-.799-4.169 1.997 1.668z" style="transform-origin:5.083px 4.341px 0" transform="rotate(-15)"/></svg>',
+        "icon": '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path fill="#9C84EF" d="m16.387 13.238 4.553-2.276a1 1 0 0 1 1.447.894v6.764a1 1 0 0 1-1.447.894l-4.553-2.276zm-12-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2z"/><path fill="#FBB748" d="m7.056 1.244 2.388 3.824 2.987-2.549-1.196 6.372H2.876L1.681 2.519l2.987 2.549z" style="transform-origin:7.056px 5.068px 0" transform="rotate(-15 6.08 -.776)"/></svg>',
     },
     "early": {
         "name": "Early Supporter",
