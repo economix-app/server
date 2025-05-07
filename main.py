@@ -229,34 +229,38 @@ COSMETICS = {
 
 # Badges
 BADGES = {
-  "staff": {
-    "name": "Staff",
-    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tool"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" /></svg>"""
-  },
-  "shield": {
-    "name": "Moderator",
-    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-shield"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /></svg>"""
-  },
-  "code": {
-    "name": "Developer",
-    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-code"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 8l-4 4l4 4" /><path d="M17 8l4 4l-4 4" /><path d="M14 4l-4 16" /></svg>"""
-  },
-  "video": {
-    "name": "Creator",
-    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4z" /><path d="M3 6m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" /></svg>"""
-  },
-  "early": {
-    "name": "Early Supporter",
-    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-timeline"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 16l6 -7l5 5l5 -6" /><path d="M15 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M10 9m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M4 16m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M20 8m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>"""
-  },
-  "pro": {
-    "name": "PRO",
-    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-star"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" /></svg>"""
-  },
-  "proplus": {
-    "name": "PRO+",
-    "icon": """<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-jewish-star"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 2l3 5h6l-3 5l3 5h-6l-3 5l-3 -5h-6l3 -5l-3 -5h6z" /></svg>"""
-  }
+    "staff": {
+        "name": "Staff",
+        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-tools"><path stroke="#2563eb" d="M0 0h24v24H0z"/><path stroke="#2563eb" d="M3 21h4L20 8a1.5 1.5 0 0 0-4-4L3 17zM14.5 5.5l4 4"/><path stroke="#2563eb" d="M12 8 7 3 3 7l5 5M7 8 5.5 9.5M16 12l5 5-4 4-5-5m4 1-1.5 1.5"/></svg>""",
+    },
+    "shield": {
+        "name": "Moderator",
+        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="icon icon-tabler icons-tabler-filled icon-tabler-shield-half"><path stroke="#2563eb" d="M0 0h24v24H0z" fill="none"/><path fill="#2563eb" d="m11.998 2 .032.002.086.005a1 1 0 0 1 .342.104l.105.062.097.076.016.015.247.21a11 11 0 0 0 7.189 2.537l.342-.01a1 1 0 0 1 1.005.717 13 13 0 0 1-9.208 16.25 1 1 0 0 1-.502 0A13 13 0 0 1 2.54 5.718a1 1 0 0 1 1.005-.717 11 11 0 0 0 7.791-2.75l.046-.036.053-.041a1 1 0 0 1 .217-.112l.075-.023.036-.01a1 1 0 0 1 .12-.022l.086-.005zM12 4.296l-.176.135a13 13 0 0 1-7.288 2.572l-.264.006-.064.31a11 11 0 0 0 1.064 7.175l.17.314a11 11 0 0 0 6.49 5.136l.068.019z"/></svg>""",
+    },
+    "code": {
+        "name": "Developer",
+        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-code"><path stroke="#2563eb" d="m7 8-4 4 4 4m10-8 4 4-4 4"/><path stroke="#bd1fdd" d="m14 4-4 16"/></svg>""",
+    },
+    "video": {
+        "name": "Creator",
+        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path d="M0 0h24v24H0z" fill="none"/><path fill="#F47B67" d="m15 10 4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14zM3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>""",
+    },
+    "legacy_video": {
+        "name": "Legacy Creator",
+        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="icon icon-tabler icons-tabler-outline icon-tabler-video"><path fill="#9C84EF" d="m15 10 4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14zM3 8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path fill="#FBB748" d="M5.083 1.839 6.68 4.341l1.998-1.668-.8 4.169h-5.59l-.799-4.169 1.997 1.668z" style="transform-origin:5.083px 4.341px 0" transform="rotate(-15)"/></svg>""",
+    },
+    "early": {
+        "name": "Early Supporter",
+        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 375 375" version="1.0"><defs><clipPath id="a"><path d="M28 165h179v181H28Zm0 0"/></clipPath><clipPath id="b"><path d="M-8.914 193.48 117.922 76.25l174.902 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="c"><path d="M-8.914 193.48 117.922 76.25l174.902 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="d"><path d="M119 81h179v181H119Zm0 0"/></clipPath><clipPath id="e"><path d="M82.254 109.219 209.09-8.011l174.898 189.23-126.836 117.23Zm0 0"/></clipPath><clipPath id="f"><path d="M82.254 109.219 209.09-8.011l174.898 189.23-126.836 117.23Zm0 0"/></clipPath></defs><g clip-path="url(#a)"><g clip-path="url(#b)"><g clip-path="url(#c)"><path fill="#18cb96" d="m206.484 172.457-154.03-6.848c-29.755-1.32-34.778 56.633.472 57.59l95.847 2.598-7.32 96.441c-2.23 29.367 55.047 32.469 56.684 2.621Zm0 0"/></g></g></g><g clip-path="url(#d)"><g clip-path="url(#e)"><g clip-path="url(#f)"><path fill="#18cb96" d="m297.648 88.195-154.03-6.847c-29.75-1.32-34.774 56.632.476 57.59l95.844 2.593-7.32 96.446c-2.227 29.367 55.046 32.468 56.683 2.62Zm0 0"/></g></g></g></svg>""",
+    },
+    "pro": {
+        "name": "PRO",
+        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><path fill="#FFAC33" d="M27.287 34.627c-.404 0-.806-.124-1.152-.371L18 28.422l-8.135 5.834a1.97 1.97 0 0 1-2.312-.008 1.97 1.97 0 0 1-.721-2.194l3.034-9.792-8.062-5.681a1.98 1.98 0 0 1-.708-2.203 1.98 1.98 0 0 1 1.866-1.363L12.947 13l3.179-9.549a1.976 1.976 0 0 1 3.749 0L23 13l10.036.015a1.975 1.975 0 0 1 1.159 3.566l-8.062 5.681 3.034 9.792a1.97 1.97 0 0 1-.72 2.194 1.96 1.96 0 0 1-1.16.379"/></svg>""",
+    },
+    "proplus": {
+        "name": "PRO+",
+        "icon": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 36 36"><path fill="#FFAC33" d="M28.84 17.638c-.987 1.044-1.633 3.067-1.438 4.493l.892 6.441c.197 1.427-.701 2.087-1.996 1.469l-5.851-2.796c-1.295-.62-3.408-.611-4.7.018l-5.826 2.842c-1.291.629-2.193-.026-2.007-1.452l.843-6.449c.186-1.427-.475-3.444-1.47-4.481l-4.494-4.688c-.996-1.037-.655-2.102.755-2.365l6.37-1.188c1.41-.263 3.116-1.518 3.793-2.789L16.762.956c.675-1.271 1.789-1.274 2.473-.009L22.33 6.66c.686 1.265 2.4 2.507 3.814 2.758l6.378 1.141c1.412.252 1.761 1.314.774 2.359z"/><path fill="#FFD983" d="M9.783 2.181c1.023 1.413 2.446 4.917 1.717 5.447-.728.531-3.607-1.91-4.63-3.323s-.935-2.668-.131-3.254c.804-.587 2.02-.282 3.044 1.13m19.348 2.124C28.109 5.718 25.23 8.16 24.5 7.627c-.729-.53.695-4.033 1.719-5.445C27.242.768 28.457.463 29.262 1.051c.803.586.89 1.841-.131 3.254M16.625 33.291c-.001-1.746.898-5.421 1.801-5.421.897 0 1.798 3.675 1.797 5.42 0 1.747-.804 2.712-1.8 2.71-.994.002-1.798-.962-1.798-2.709m16.179-9.262c-1.655-.539-4.858-2.533-4.579-3.395.277-.858 4.037-.581 5.69-.041 1.655.54 2.321 1.605 2.013 2.556-.308.95-1.469 1.42-3.124.88M2.083 20.594c1.655-.54 5.414-.817 5.694.044.276.857-2.928 2.854-4.581 3.392-1.654.54-2.818.07-3.123-.88-.308-.95.354-2.015 2.01-2.556"/></svg>""",
+    },
 }
 
 EARLY_SUPPORTER_DEADLINE = 1767186000
@@ -751,7 +755,7 @@ def authenticate_user():
         "stats_endpoint",
         "stripe_webhook",
         "ping",
-        "get_raw_downtime"
+        "get_raw_downtime",
     ]
     if request.method == "OPTIONS" or request.endpoint in public_endpoints:
         return
@@ -1000,41 +1004,43 @@ def update_account(username: str) -> Optional[Tuple[dict, int]]:
             {"username": username},
             {"$push": {"cosmetics": "gold"}},
         )
-        
+
     if user.get("type") == "admin" and "staff" not in user.get("badges", []):
-      Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"badges": "staff"}}
-      )
-      
+        Collections["users"].update_one(
+            {"username": username}, {"$addToSet": {"badges": "staff"}}
+        )
+
     if user.get("type") == "admin" and "shield" not in user.get("badges", []):
-      Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"badges": "shield"}}
-      )
-      
+        Collections["users"].update_one(
+            {"username": username}, {"$addToSet": {"badges": "shield"}}
+        )
+
     if user.get("type") == "admin" and "code" not in user.get("badges", []):
-      Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"badges": "code"}}
-      )
-      
+        Collections["users"].update_one(
+            {"username": username}, {"$addToSet": {"badges": "code"}}
+        )
+
     if user.get("type") == "mod" and "shield" not in user.get("badges", []):
-      Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"badges": "shield"}}
-      )
-      
+        Collections["users"].update_one(
+            {"username": username}, {"$addToSet": {"badges": "shield"}}
+        )
+
     if user.get("type") == "dev" and "code" not in user.get("badges", []):
-      Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"badges": "code"}}
-      )
-      
+        Collections["users"].update_one(
+            {"username": username}, {"$addToSet": {"badges": "code"}}
+        )
+
     if user.get("media", False) and "media" not in user.get("badges", []):
-      Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"badges": "video"}}
-      )
-      
-    if user.get("created_at", time.time()) <= EARLY_SUPPORTER_DEADLINE and "early" not in user.get("badges", []):
-      Collections["users"].update_one(
-        {"username": username}, {"$addToSet": {"badges": "early"}}
-      )
+        Collections["users"].update_one(
+            {"username": username}, {"$addToSet": {"badges": "video"}}
+        )
+
+    if user.get(
+        "created_at", time.time()
+    ) <= EARLY_SUPPORTER_DEADLINE and "early" not in user.get("badges", []):
+        Collections["users"].update_one(
+            {"username": username}, {"$addToSet": {"badges": "early"}}
+        )
 
 
 # Item and Pet Generation
@@ -1211,7 +1217,9 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
         )
         return jsonify({"error": "Account spam detected", "code": "account-spam"}), 429
 
-    if not re.match(r"^[a-zA-Z0-9_-]{3,20}$", username) or profanity.contains_profanity(username):
+    if not re.match(r"^[a-zA-Z0-9_-]{3,20}$", username) or profanity.contains_profanity(
+        username
+    ):
         return jsonify({"error": "Invalid username"}), 400
 
     try:
@@ -1330,6 +1338,7 @@ def get_user(username: str) -> Tuple[dict, int]:
     user = Collections["users"].find_one({"username": username}, {"_id": 0})
     return jsonify(user)
 
+
 def expand_targets(spec: str):
     # Parse optional filter bracket
     base_part = spec
@@ -1351,17 +1360,23 @@ def expand_targets(spec: str):
         elif part.startswith("*-"):
             # exclude a specific user from all
             excl = part[2:]
-            cursor = Collections["users"].find({"username": {"$ne": excl}}, {"username": 1})
+            cursor = Collections["users"].find(
+                {"username": {"$ne": excl}}, {"username": 1}
+            )
             targets.extend(u["username"] for u in cursor)
         elif part.startswith("*"):
             # suffix wildcard: usernames ending with given suffix
             suffix = part[1:]
-            cursor = Collections["users"].find({"username": {"$regex": f"{re.escape(suffix)}$"}}, {"username": 1})
+            cursor = Collections["users"].find(
+                {"username": {"$regex": f"{re.escape(suffix)}$"}}, {"username": 1}
+            )
             targets.extend(u["username"] for u in cursor)
         elif part.endswith("*"):
             # prefix wildcard: usernames starting with given prefix
             prefix = part[:-1]
-            cursor = Collections["users"].find({"username": {"$regex": f"^{re.escape(prefix)}"}}, {"username": 1})
+            cursor = Collections["users"].find(
+                {"username": {"$regex": f"^{re.escape(prefix)}"}}, {"username": 1}
+            )
             targets.extend(u["username"] for u in cursor)
         else:
             # literal username
@@ -1373,12 +1388,13 @@ def expand_targets(spec: str):
     # Apply filters if present
     if filter_part:
         filters = [f.strip() for f in filter_part.split(",")]
+
         def passes_filters(user):
             for f in filters:
                 if "=" not in f:
                     continue
                 key, val = f.split("=", 1)
-                negate = val.startswith('!')
+                negate = val.startswith("!")
                 val_clean = val[1:] if negate else val
                 attr = user.get(key)
                 # convert booleans
@@ -1435,24 +1451,30 @@ def parse_command(username: str, command: str, room_name: str) -> str:
             if not user_data:
                 continue
             badges = user_data.get("badges", [])
-            if has_proplus(sudo_user): badges.append("proplus")
-            elif has_pro(sudo_user): badges.append("pro")
-            
+            if has_proplus(sudo_user):
+                badges.append("proplus")
+            elif has_pro(sudo_user):
+                badges.append("pro")
+
             new_badges = []
             for badge in badges:
-                new_badges.append({"name": BADGES[badge]["name"], "icon": BADGES[badge]["icon"]})
-            
-            Collections["messages"].insert_one({
-                "id": str(uuid4()),
-                "room": room_name,
-                "username": sudo_user,
-                "message": message,
-                "timestamp": time.time(),
-                "badges": new_badges,
-                "type": user_data["type"],
-                "messageplate": user_data.get("equipped_messageplate"),
-                "nameplate": user_data.get("equipped_nameplate"),
-            })
+                new_badges.append(
+                    {"name": BADGES[badge]["name"], "icon": BADGES[badge]["icon"]}
+                )
+
+            Collections["messages"].insert_one(
+                {
+                    "id": str(uuid4()),
+                    "room": room_name,
+                    "username": sudo_user,
+                    "message": message,
+                    "timestamp": time.time(),
+                    "badges": new_badges,
+                    "type": user_data["type"],
+                    "messageplate": user_data.get("equipped_messageplate"),
+                    "nameplate": user_data.get("equipped_nameplate"),
+                }
+            )
         return f"Sudoed <b>{', '.join(targets)}</b>"
 
     if cmd == "clear_chat" and is_admin:
@@ -1463,12 +1485,19 @@ def parse_command(username: str, command: str, room_name: str) -> str:
         targets = expand_targets(args[0])
         for t in targets:
             Collections["messages"].delete_many({"room": room_name, "username": t})
-        return f"Deleted messages from <b>{', '.join(targets)}</b> in <b>{room_name}</b>"
+        return (
+            f"Deleted messages from <b>{', '.join(targets)}</b> in <b>{room_name}</b>"
+        )
 
     elif cmd == "delete_many" and len(args) == 1 and is_admin:
         try:
             amount = int(args[0])
-            messages = Collections["messages"].find({"room": room_name}).sort("timestamp", -1).limit(amount)
+            messages = (
+                Collections["messages"]
+                .find({"room": room_name})
+                .sort("timestamp", -1)
+                .limit(amount)
+            )
             ids = [doc["_id"] for doc in messages]
             Collections["messages"].delete_many({"_id": {"$in": ids}})
             return f"Deleted <b>{amount}</b> messages from <b>{room_name}</b>"
@@ -1485,7 +1514,9 @@ def parse_command(username: str, command: str, room_name: str) -> str:
     elif cmd == "unban" and len(args) == 1 and is_admin:
         targets = expand_targets(args[0])
         for t in targets:
-            Collections["users"].update_one({"username": t}, {"$set": {"banned": False}})
+            Collections["users"].update_one(
+                {"username": t}, {"$set": {"banned": False}}
+            )
         return f"Unbanned <b>{', '.join(targets)}</b>"
 
     elif cmd == "mute" and len(args) == 2 and is_mod:
@@ -1504,9 +1535,14 @@ def parse_command(username: str, command: str, room_name: str) -> str:
     elif cmd == "list_banned" and is_mod:
         banned = Collections["users"].find({"banned": True})
         banned_list = [
-            f"<p><b>{u['username']}</b> - Reason: {u.get('banned_reason', 'No reason')} | Until: {u.get('banned_until')}" for u in banned
+            f"<p><b>{u['username']}</b> - Reason: {u.get('banned_reason', 'No reason')} | Until: {u.get('banned_until')}"
+            for u in banned
         ]
-        return "Nobody is banned." if not banned_list else "Banned users:<br>" + "<br>".join(banned_list)
+        return (
+            "Nobody is banned."
+            if not banned_list
+            else "Banned users:<br>" + "<br>".join(banned_list)
+        )
 
     elif cmd == "help" and is_mod:
         return """
@@ -1529,16 +1565,18 @@ def parse_command(username: str, command: str, room_name: str) -> str:
     elif cmd == "msg" and len(args) >= 2:
         recipient, *msg = args
         message = " ".join(msg)
-        Collections["messages"].insert_one({
-            "id": str(uuid4()),
-            "room": room_name,
-            "username": f"{username} -> {recipient}",
-            "message": message,
-            "timestamp": time.time(),
-            "badges": ["📩"],
-            "visibility": [username, recipient],
-            "type": "msg",
-        })
+        Collections["messages"].insert_one(
+            {
+                "id": str(uuid4()),
+                "room": room_name,
+                "username": f"{username} -> {recipient}",
+                "message": message,
+                "timestamp": time.time(),
+                "badges": ["📩"],
+                "visibility": [username, recipient],
+                "type": "msg",
+            }
+        )
         return f"Sent private message to <b>{recipient}</b>"
 
     else:
@@ -1572,10 +1610,14 @@ def send_message(
 
     # Anti‐spam
     current_time = time.time()
-    message_count = Collections["message_attempts"].count_documents({
-        "username": username,
-        "timestamp": {"$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]}
-    })
+    message_count = Collections["message_attempts"].count_documents(
+        {
+            "username": username,
+            "timestamp": {
+                "$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]
+            },
+        }
+    )
     if message_count >= AUTOMOD_CONFIG["MESSAGE_SPAM_THRESHOLD"]:
         is_new = (current_time - user["created_at"]) < AUTOMOD_CONFIG["MIN_ACCOUNT_AGE"]
         mute_duration = (
@@ -1584,23 +1626,38 @@ def send_message(
             else AUTOMOD_CONFIG["MESSAGE_SPAM_MUTE_DURATION"]
         )
         mute_user(username, mute_duration, notify=False)
-        deleted = Collections["messages"].delete_many({
-            "username": username,
-            "timestamp": {"$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]}
-        }).deleted_count
-        Collections["messages"].insert_one({
-            "id": str(uuid4()),
-            "room": room_name,
-            "username": "AutoMod",
-            "message": (
-                f"<p><span style=\"color: #FF5555\">[WARNING]</span> Detected "
-                f"<b>{deleted}x</b> Message Spam</p>"
-                f"<p>User: <b>{username}</b> has been muted for <b>{mute_duration}</b></p>"
-            ),
-            "timestamp": current_time,
-            "badges": [{"name": "System", "icon": "<svg  xmlns=\"http://www.w3.org/2000/svg\"  width=\"24\"  height=\"24\"  viewBox=\"0 0 24 24\"  fill=\"none\"  stroke=\"currentColor\"  stroke-width=\"2\"  stroke-linecap=\"round\"  stroke-linejoin=\"round\"  class=\"icon icon-tabler icons-tabler-outline icon-tabler-settings\"><path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z\" /><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\" /></svg>"}],
-            "type": "system",
-        })
+        deleted = (
+            Collections["messages"]
+            .delete_many(
+                {
+                    "username": username,
+                    "timestamp": {
+                        "$gt": current_time - AUTOMOD_CONFIG["MESSAGE_SPAM_TIME_WINDOW"]
+                    },
+                }
+            )
+            .deleted_count
+        )
+        Collections["messages"].insert_one(
+            {
+                "id": str(uuid4()),
+                "room": room_name,
+                "username": "AutoMod",
+                "message": (
+                    f'<p><span style="color: #FF5555">[WARNING]</span> Detected '
+                    f"<b>{deleted}x</b> Message Spam</p>"
+                    f"<p>User: <b>{username}</b> has been muted for <b>{mute_duration}</b></p>"
+                ),
+                "timestamp": current_time,
+                "badges": [
+                    {
+                        "name": "System",
+                        "icon": '<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>',
+                    }
+                ],
+                "type": "system",
+            }
+        )
         send_discord_notification(
             "AutoMod Action",
             f"Muted {username} for spamming. Deleted {deleted} messages.",
@@ -1608,24 +1665,31 @@ def send_message(
         )
         return jsonify({"error": "Message spam detected", "code": "message-spam"}), 429
 
-    Collections["message_attempts"].insert_one({
-        "username": username, "ip": ip, "timestamp": current_time
-    })
+    Collections["message_attempts"].insert_one(
+        {"username": username, "ip": ip, "timestamp": current_time}
+    )
 
     # Command handling
     if message_content.startswith("/"):
         system_message = parse_command(username, message_content, room_name)
         if system_message:
-            Collections["messages"].insert_one({
-                "id": str(uuid4()),
-                "room": room_name,
-                "username": "Command Handler",
-                "message": system_message,
-                "timestamp": time.time(),
-                "badges": [{"name": "System", "icon": "<svg  xmlns=\"http://www.w3.org/2000/svg\"  width=\"24\"  height=\"24\"  viewBox=\"0 0 24 24\"  fill=\"none\"  stroke=\"currentColor\"  stroke-width=\"2\"  stroke-linecap=\"round\"  stroke-linejoin=\"round\"  class=\"icon icon-tabler icons-tabler-outline icon-tabler-settings\"><path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z\" /><path d=\"M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\" /></svg>"}],
-                "type": "system",
-                "visibility": [username],
-            })
+            Collections["messages"].insert_one(
+                {
+                    "id": str(uuid4()),
+                    "room": room_name,
+                    "username": "Command Handler",
+                    "message": system_message,
+                    "timestamp": time.time(),
+                    "badges": [
+                        {
+                            "name": "System",
+                            "icon": '<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>',
+                        }
+                    ],
+                    "type": "system",
+                    "visibility": [username],
+                }
+            )
         return jsonify({"success": True})
 
     # Convert Markdown -> HTML, then sanitize
@@ -1633,22 +1697,28 @@ def send_message(
     md_html = markdown.markdown(
         raw,
         extensions=[
-            'extra',
-            'sane_lists',
-            'codehilite',
-        ]
+            "extra",
+            "sane_lists",
+            "codehilite",
+        ],
     )
     allowed_tags = [
-        'p', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote'
+        "p",
+        "strong",
+        "em",
+        "a",
+        "ul",
+        "ol",
+        "li",
+        "code",
+        "pre",
+        "blockquote",
     ]
     allowed_attrs = {
-        'a': ['href', 'title', 'target'],
+        "a": ["href", "title", "target"],
     }
     sanitized_message = bleach.clean(
-        md_html,
-        tags=allowed_tags,
-        attributes=allowed_attrs,
-        strip=True
+        md_html, tags=allowed_tags, attributes=allowed_attrs, strip=True
     )
 
     if not sanitized_message:
@@ -1658,41 +1728,49 @@ def send_message(
 
     # Profanity filter
     if profanity.contains_profanity(sanitized_message):
-        Collections["messages"].insert_one({
-            "id": str(uuid4()),
-            "room": room_name,
-            "username": "Message Blocked",
-            "message": (
-                f"Message from <b>{username}</b> was blocked due to profanity. "
-                f"Message: <b>{sanitized_message}</b>"
-            ),
-            "timestamp": time.time(),
-            "badges": ["❌"],
-            "type": "system",
-            "visibility": [username],
-        })
+        Collections["messages"].insert_one(
+            {
+                "id": str(uuid4()),
+                "room": room_name,
+                "username": "Message Blocked",
+                "message": (
+                    f"Message from <b>{username}</b> was blocked due to profanity. "
+                    f"Message: <b>{sanitized_message}</b>"
+                ),
+                "timestamp": time.time(),
+                "badges": ["❌"],
+                "type": "system",
+                "visibility": [username],
+            }
+        )
         return jsonify({"success": True})
 
     badges = user.get("badges", [])
-    if has_proplus(username): badges.append("proplus")
-    elif has_pro(username): badges.append("pro")
-    
-    new_badges = []
-    
-    for badge in badges:
-        new_badges.append({"name": BADGES[badge]["name"], "icon": BADGES[badge]["icon"]})
+    if has_proplus(username):
+        badges.append("proplus")
+    elif has_pro(username):
+        badges.append("pro")
 
-    Collections["messages"].insert_one({
-        "id": str(uuid4()),
-        "room": room_name,
-        "username": username,
-        "message": sanitized_message,
-        "timestamp": time.time(),
-        "nameplate": user.get("equipped_nameplate"),
-        "messageplate": user.get("equipped_messageplate"),
-        "badges": new_badges,
-        "type": user["type"],
-    })
+    new_badges = []
+
+    for badge in badges:
+        new_badges.append(
+            {"name": BADGES[badge]["name"], "icon": BADGES[badge]["icon"]}
+        )
+
+    Collections["messages"].insert_one(
+        {
+            "id": str(uuid4()),
+            "room": room_name,
+            "username": username,
+            "message": sanitized_message,
+            "timestamp": time.time(),
+            "nameplate": user.get("equipped_nameplate"),
+            "messageplate": user.get("equipped_messageplate"),
+            "badges": new_badges,
+            "type": user["type"],
+        }
+    )
 
     return jsonify({"success": True})
 
@@ -3825,6 +3903,7 @@ def get_downtime():
         }
     )
 
+
 @app.route("/api/get_raw_downtime", methods=["GET"])
 def get_raw_downtime():
     downtime = Collections["misc"].find_one({"type": "downtime"})
@@ -3863,6 +3942,7 @@ def set_downtime():
 
     return jsonify({"success": True})
 
+
 @app.route("/api/add_badge", methods=["POST"])
 @requires_admin
 def add_badge_endpoint():
@@ -3871,19 +3951,19 @@ def add_badge_endpoint():
     badge = data.get("badge")
 
     if not username or not badge:
-      return jsonify({"error": "Missing username or badge"}), 400
+        return jsonify({"error": "Missing username or badge"}), 400
 
     user = Collections["users"].find_one({"username": username})
     if not user:
-      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+        return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one(
-      {"username": username}, {"$addToSet": {"badges": badge}}
+        {"username": username}, {"$addToSet": {"badges": badge}}
     )
     send_discord_notification(
-      "Badge Added",
-      f"Admin {request.username} added badge '{badge}' to {username}",
-      0x00FF00,
+        "Badge Added",
+        f"Admin {request.username} added badge '{badge}' to {username}",
+        0x00FF00,
     )
     return jsonify({"success": True})
 
