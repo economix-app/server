@@ -124,6 +124,7 @@ Collections = {
     "trades": db.trades,
     "reports": db.reports,
     "pending_subscriptions": db.pending_subscriptions,
+    "gift_codes": db.gift_codes,
 }
 
 # AutoMod Configuration
@@ -397,6 +398,7 @@ def create_indexes():
         [("subscription_id", ASCENDING)],
         unique=True,
     )
+    ensure_index(Collections["gift_codes"], [("code", ASCENDING)], unique=True)
 
 
 create_indexes()
@@ -434,7 +436,7 @@ def block_ip(ip: str, duration: str, reason: str, subnet: bool = False) -> None:
         block_data["subnet"] = ".".join(ip.split(".")[:3]) + ".0/24"
 
     Collections["blocked_ips"].update_one({"ip": ip}, {"$set": block_data}, upsert=True)
-    send_discord_notification(
+    log_action(
         "IP Blocked",
         f"IP {ip}{' subnet' if subnet else ''} blocked until {time.ctime(end_time)}. Reason: {reason}",
         0xFF0000,
@@ -544,7 +546,7 @@ def generate_lore(name):
     )
 
 
-def send_discord_notification(title: str, description: str, color: int = 0x00FF00):
+def log_action(title: str, description: str, color: int = 0x00FF00):
     webhook_url = os.environ.get("DISCORD_WEBHOOK")
     if not webhook_url:
         app.logger.error("Discord webhook URL not configured")
@@ -884,7 +886,7 @@ def update_pet(pet_id: str):
                     {"id": pet_id},
                     {"$set": {"hunger": 0, "happiness": 0, "alive": False}},
                 )
-                send_discord_notification(
+                log_action(
                     "Pet Died",
                     f"User {pet['owner']}'s pet {pet['name']} died due to neglect.",
                     0xFF0000,
@@ -921,7 +923,7 @@ def level_up_pet(pet_id: str, exp_gain: int):
             {"id": pet_id},
             {"$set": {"level": pet["level"] + 1, "exp": new_exp - next_level_exp}},
         )
-        send_discord_notification(
+        log_action(
             "Pet Leveled Up",
             f"User {pet['owner']}'s pet {pet['name']} reached level {pet['level'] + 1}!",
             0x00FF00,
@@ -1260,7 +1262,7 @@ def register(username: str, password: str, ip: str) -> Tuple[dict, int]:
         Collections["account_creation_attempts"].insert_one(
             {"ip": ip, "timestamp": current_time}
         )
-        send_discord_notification(
+        log_action(
             "New user registered", f"Username: {username}\nIP: {ip}"
         )
         return jsonify({"success": True}), 201
@@ -1325,7 +1327,7 @@ def login(
 
     token = str(uuid4())
     Collections["users"].update_one({"username": username}, {"$set": {"token": token}})
-    send_discord_notification("User logged in", f"Username: {username}")
+    log_action("User logged in", f"Username: {username}")
     return jsonify({"success": True, "token": token})
 
 
@@ -1652,7 +1654,7 @@ def send_message(
                 "type": "system",
             }
         )
-        send_discord_notification(
+        log_action(
             "AutoMod Action",
             f"Muted {username} for spamming. Deleted {deleted} messages.",
             0xFF0000,
@@ -1768,7 +1770,7 @@ def reset_cooldowns(username: str) -> Tuple[dict, int]:
     Collections["users"].update_one(
         {"username": username}, {"$set": {"last_item_time": 0, "last_mine_time": 0}}
     )
-    send_discord_notification(
+    log_action(
         "Cooldowns Reset",
         f"Admin {request.username} reset cooldowns for {username}",
         0xFFA500,
@@ -1791,7 +1793,7 @@ def edit_tokens(username: str, tokens: float) -> Tuple[dict, int]:
     Collections["users"].update_one(
         {"username": username}, {"$set": {"tokens": tokens}}
     )
-    send_discord_notification(
+    log_action(
         "Tokens Edited",
         f"Admin {request.username} set {username}'s tokens to {tokens}",
         0xFFA500,
@@ -1816,7 +1818,7 @@ def edit_exp(username: str, exp: float) -> Tuple[dict, int]:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     set_exp(username, exp)
-    send_discord_notification(
+    log_action(
         "Experience Edited",
         f"Admin {request.username} set {username}'s exp to {exp}",
         0xFFA500,
@@ -1844,7 +1846,7 @@ def edit_level(username: str, level: int) -> Tuple[dict, int]:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     set_level(username, level)
-    send_discord_notification(
+    log_action(
         "Level Edited",
         f"Admin {request.username} set {username}'s level to {level}",
         0xFFA500,
@@ -1857,7 +1859,7 @@ def add_admin(username: str) -> Tuple[dict, int]:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one({"username": username}, {"$set": {"type": "admin"}})
-    send_discord_notification(
+    log_action(
         "Admin Added", f"Admin {request.username} added {username} as admin", 0xFFA500
     )
     return jsonify({"success": True})
@@ -1868,7 +1870,7 @@ def remove_admin(username: str) -> Tuple[dict, int]:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one({"username": username}, {"$set": {"type": "user"}})
-    send_discord_notification(
+    log_action(
         "Admin Removed",
         f"Admin {request.username} removed {username} as admin",
         0xFFA500,
@@ -1881,7 +1883,7 @@ def add_mod(username: str) -> Tuple[dict, int]:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one({"username": username}, {"$set": {"type": "mod"}})
-    send_discord_notification(
+    log_action(
         "Mod Added", f"Admin {request.username} added {username} as mod", 0xFFA500
     )
     return jsonify({"success": True})
@@ -1892,7 +1894,7 @@ def remove_mod(username: str) -> Tuple[dict, int]:
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one({"username": username}, {"$set": {"type": "user"}})
-    send_discord_notification(
+    log_action(
         "Mod Removed", f"Admin {request.username} removed {username} as mod", 0xFFA500
     )
     return jsonify({"success": True})
@@ -1936,7 +1938,7 @@ def edit_item(
             ]
         ).strip()
         updates_str = ", ".join([f"{k}: {v}" for k, v in updates.items()])
-        send_discord_notification(
+        log_action(
             "Item Edited",
             f"Admin {request.username} edited {item_name} (ID: {item_id}). Changes: {updates_str}",
             0xFFA500,
@@ -1953,7 +1955,7 @@ def delete_item(item_id: str) -> Tuple[dict, int]:
         {"username": item["owner"]}, {"$pull": {"items": item_id}}
     )
     Collections["items"].delete_one({"id": item_id})
-    send_discord_notification(
+    log_action(
         "Item Deleted", f"Admin {request.username} deleted item {item_id}", 0xFF0000
     )
     return jsonify({"success": True})
@@ -1979,7 +1981,7 @@ def ban_user(username: str, length: str, reason: str) -> Tuple[dict, int]:
         {"username": username},
         {"$set": {"banned_until": end_time, "banned_reason": reason, "banned": True}},
     )
-    send_discord_notification(
+    log_action(
         "User Banned",
         f"Admin {request.username} banned {username} for {length}. Reason: {reason}",
         0xFF0000,
@@ -1995,7 +1997,7 @@ def unban_user(username: str) -> Tuple[dict, int]:
         {"username": username},
         {"$set": {"banned_until": None, "banned_reason": None, "banned": False}},
     )
-    send_discord_notification(
+    log_action(
         "User Unbanned", f"Admin {request.username} unbanned {username}", 0xFFA500
     )
     return jsonify({"success": True})
@@ -2019,7 +2021,7 @@ def mute_user(username: str, length: str, notify: bool = True) -> Tuple[dict, in
         {"username": username}, {"$set": {"muted_until": end_time, "muted": True}}
     )
     if notify:
-        send_discord_notification(
+        log_action(
             "User Muted",
             f"Admin/Mod {request.username} muted {username} for {length}",
             0xFFA500,
@@ -2044,7 +2046,7 @@ def unmute_user(username: str, notify: bool = True) -> Tuple[dict, int]:
         {"username": username}, {"$set": {"muted": False, "muted_until": None}}
     )
     if notify:
-        send_discord_notification(
+        log_action(
             "User Unmuted", f"Admin/Mod {request.username} unmuted {username}", 0xFFA500
         )
     return jsonify({"success": True})
@@ -2057,7 +2059,7 @@ def fine_user(username: str, amount: int) -> Tuple[dict, int]:
     Collections["users"].update_one(
         {"username": username}, {"$inc": {"tokens": -amount}}
     )
-    send_discord_notification(
+    log_action(
         "User Fined",
         f"Admin {request.username} fined {username} {amount} tokens",
         0xFFA500,
@@ -2073,7 +2075,7 @@ def delete_message(message_id: str) -> Tuple[dict, int]:
         )
 
     Collections["messages"].delete_one({"id": message_id})
-    send_discord_notification(
+    log_action(
         "Message Deleted",
         f"Mod/Admin {request.username} deleted message {message_id}",
         0xFF0000,
@@ -2165,7 +2167,7 @@ def delete_account_endpoint():
 
     Collections["items"].delete_many({"owner": request.username})
     Collections["users"].delete_one({"username": request.username})
-    send_discord_notification("User deleted", f"Username: {request.username}")
+    log_action("User deleted", f"Username: {request.username}")
     return jsonify({"success": True})
 
 
@@ -2223,7 +2225,7 @@ def create_item_endpoint():
             f"#{new_item['name']['number']}",
         ]
     ).strip()
-    send_discord_notification(
+    log_action(
         "New Item Created",
         f"User {request.username} created: {item_name} (Rarity: {new_item['rarity']})",
     )
@@ -2275,7 +2277,7 @@ def buy_pet_endpoint():
         {"username": request.username},
         {"$inc": {"tokens": -price}, "$push": {"pets": pet["id"]}},
     )
-    send_discord_notification(
+    log_action(
         "New Pet Bought",
         f"User {request.username} bought pet: {pet['name']} for {price} tokens",
     )
@@ -2319,7 +2321,7 @@ def feed_pet_endpoint():
     )
     level_up_pet(pet_id, 3)  # Gain 3 exp per feeding
     update_pet(pet_id)
-    send_discord_notification(
+    log_action(
         "Pet Fed", f"User {request.username} fed pet: {pet['name']}"
     )
     return jsonify({"success": True})
@@ -2372,7 +2374,7 @@ def play_with_pet_endpoint():
     )
     update_account(request.username)
     update_pet(pet_id)
-    send_discord_notification(
+    log_action(
         "Pet Played With", f"User {request.username} played with pet: {pet['name']}"
     )
     return jsonify({"success": True})
@@ -2399,7 +2401,7 @@ def mine_tokens_endpoint():
 
     # Detect token farming patterns
     if user["tokens"] > 10000:  # Arbitrary threshold for excessive tokens
-        send_discord_notification(
+        log_action(
             "Suspicious Token Mining",
             f"User {request.username} has an unusually high token balance ({user['tokens']}).",
             0xFF0000,
@@ -2423,7 +2425,7 @@ def mine_tokens_endpoint():
         {"$push": {"history": {"item_id": None, "action": "mine", "timestamp": now}}},
     )
     add_exp(request.username, 5)
-    send_discord_notification(
+    log_action(
         "Tokens Mined", f"User {request.username} mined {tokens} tokens"
     )
     return jsonify({"success": True, "tokens": tokens})
@@ -2497,7 +2499,7 @@ def sell_item_endpoint():
             f"#{item['name']['number']}",
         ]
     ).strip()
-    send_discord_notification(
+    log_action(
         "Item Listed" if update_data["for_sale"] else "Item Unlisted",
         f"User {request.username} {'listed' if update_data["for_sale"] else 'unlisted'} {item_name} {'for ' + str(price) + ' tokens' if update_data['for_sale'] else ''}",
         0xFFFF00,
@@ -2594,7 +2596,7 @@ def buy_item_endpoint():
             f"#{item['name']['number']}",
         ]
     ).strip()
-    send_discord_notification(
+    log_action(
         "Item Purchased",
         f"User {request.username} bought {item_name} from {item['owner']} for {item['price']} tokens",
         0x0000FF,
@@ -2918,7 +2920,7 @@ def send_tokens_endpoint():
             500,
         )
 
-    send_discord_notification(
+    log_action(
         "Tokens Sent", f"{request.username} sent {amount} tokens to {recipient}"
     )
 
@@ -2991,7 +2993,7 @@ def add_media_endpoint():
 
     Collections["users"].update_one({"username": username}, {"$set": {"type": "media"}})
 
-    send_discord_notification(
+    log_action(
         "Media Added",
         f"Admin {request.username} added {username} as media",
         0x00FF00,
@@ -3011,7 +3013,7 @@ def remove_media_endpoint():
 
     Collections["users"].update_one({"username": username}, {"$set": {"type": "user"}})
 
-    send_discord_notification(
+    log_action(
         "Media Removed",
         f"Admin {request.username} removed {username} as media",
         0x00FF00,
@@ -3099,7 +3101,7 @@ def set_banner_endpoint():
     data = request.get_json()
     Collections["misc"].delete_many({"type": "banner"})
     Collections["misc"].insert_one({"type": "banner", "value": data.get("banner")})
-    send_discord_notification(
+    log_action(
         "Banner Updated",
         f"Admin {request.username} set banner to {data.get('banner')}",
         0x00FF00,
@@ -3135,7 +3137,7 @@ def delete_user_endpoint():
             except stripe.error.StripeError as e:
                 app.logger.error(f"Error cancelling subscription: {str(e)}")
 
-    send_discord_notification(
+    log_action(
         "User deleted", f"Admin {request.username} deleted user {username}", 0xFF0000
     )
     return jsonify({"success": True})
@@ -3283,7 +3285,7 @@ def get_auctions():
         Collections["auctions"].delete_one({"itemId": item_id})
 
         # Notify via Discord
-        send_discord_notification(
+        log_action(
             "Auction Ended",
             f"Auction for item {item_id} has ended. {'No bids were placed.' if not highest_bidder else f'{highest_bidder} won the auction with a bid of {bid_amount} tokens.'}",
             0x00FF00,
@@ -3426,7 +3428,7 @@ def stop_auction():
     Collections["auctions"].delete_one({"itemId": item_id})
 
     # Notify via Discord
-    send_discord_notification(
+    log_action(
         "Auction Stopped",
         f"Auction for item {item_id} has ended. {highest_bidder} won the auction with a bid of {bid_amount} tokens. {owner} received the tokens.",
         0x00FF00,
@@ -3582,7 +3584,7 @@ def add_gems_endpoint():
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one({"username": username}, {"$inc": {"gems": gems}})
-    send_discord_notification(
+    log_action(
         "Gems Added",
         f"Admin {request.username} added {gems} gems to {username}",
         0x00FF00,
@@ -3615,7 +3617,7 @@ def remove_gems_endpoint():
         return jsonify({"error": "Not enough gems to remove"}), 400
 
     Collections["users"].update_one({"username": username}, {"$inc": {"gems": -gems}})
-    send_discord_notification(
+    log_action(
         "Gems Removed",
         f"Admin {request.username} removed {gems} gems from {username}",
         0xFF0000,
@@ -3646,7 +3648,7 @@ def set_gems_endpoint():
         return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
     Collections["users"].update_one({"username": username}, {"$set": {"gems": gems}})
-    send_discord_notification(
+    log_action(
         "Gems Set",
         f"Admin {request.username} set {username}'s gems to {gems}",
         0x00FF00,
@@ -3698,7 +3700,7 @@ def buy_cosmetic_endpoint():
             {"$inc": {"gems": -cosmetic["price"]}},
         )
 
-    send_discord_notification(
+    log_action(
         "Cosmetic Purchased",
         f"User {request.username} purchased cosmetic: {cosmetic['name']} for {cosmetic['price']} gems",
         0x00FF00,
@@ -3775,7 +3777,7 @@ def equip_cosmetic_endpoint():
             {"$set": {"equipped_nameplate": cosmetic_id}},
         )
 
-    send_discord_notification(
+    log_action(
         "Cosmetic Equipped",
         f"User {request.username} equipped cosmetic: {cosmetic['name']} ({cosmetic['type']})",
         0x00FF00,
@@ -3829,7 +3831,7 @@ def revive_pet_endpoint():
         },
     )
 
-    send_discord_notification(
+    log_action(
         "Pet Revived",
         f"{request.username} revived pet {pet['name']} ({pet['id']})",
         0x00FF00,
@@ -3894,7 +3896,7 @@ def set_downtime():
         upsert=True,
     )
 
-    send_discord_notification(
+    log_action(
         "Downtime Status Changed",
         f"Admin {request.username} changed downtime status to {enabled}. Message: {message}.",
         0xFF0000,
@@ -3920,7 +3922,7 @@ def add_badge_endpoint():
     Collections["users"].update_one(
         {"username": username}, {"$addToSet": {"badges": badge}}
     )
-    send_discord_notification(
+    log_action(
         "Badge Added",
         f"Admin {request.username} added badge '{badge}' to {username}",
         0x00FF00,
@@ -3945,12 +3947,83 @@ def remove_badge_endpoint():
     Collections["users"].update_one(
         {"username": username}, {"$pull": {"badges": badge}}
     )
-    send_discord_notification(
+    log_action(
         "Badge Removed",
         f"Admin {request.username} removed badge '{badge}' from {username}",
         0xFF0000,
     )
     return jsonify({"success": True})
+  
+@app.route("/api/create_gift_code", methods=["POST"])
+@requires_admin
+def create_gift_code_endpoint():
+    data = request.get_json()
+    gems = data.get("gems")
+
+    if gems is None:
+      return jsonify({"error": "Missing gems"}), 400
+
+    try:
+      gems = int(gems)
+      if gems <= 0:
+        raise ValueError
+    except ValueError:
+      return jsonify({"error": "Invalid gems value"}), 400
+
+    # Generate a gift code in the format XXXX-XXXX-XXXX-XXXX
+    code = "-".join(
+      "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=4))
+      for _ in range(4)
+    )
+
+    if Collections["gift_codes"].find_one({"code": code}):
+      return jsonify({"error": "Gift code already exists"}), 400
+
+    Collections["gift_codes"].insert_one({"code": code, "gems": gems, "redeemed": False})
+    log_action(
+      "Gift Code Created",
+      f"Admin {request.username} created gift code '{code}' for {gems} gems",
+      0x00FF00,
+    )
+    return jsonify({"success": True, "code": code})
+
+
+@app.route("/api/redeem_gift_code", methods=["POST"])
+@requires_unbanned
+def redeem_gift_code_endpoint():
+    data = request.get_json()
+    code = data.get("code")
+
+    if not code:
+      return jsonify({"error": "Missing gift code"}), 400
+
+    # Validate the format of the gift code
+    if not re.match(r"^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$", code):
+      return jsonify({"error": "Invalid gift code format"}), 400
+
+    gift_code = Collections["gift_codes"].find_one({"code": code})
+    if not gift_code:
+      return jsonify({"error": "Invalid gift code"}), 404
+
+    if gift_code["redeemed"]:
+      return jsonify({"error": "Gift code already redeemed"}), 400
+
+    user = Collections["users"].find_one({"username": request.username})
+    if not user:
+      return jsonify({"error": "User not found", "code": "user-not-found"}), 404
+
+    Collections["users"].update_one(
+      {"username": request.username}, {"$inc": {"gems": gift_code["gems"]}}
+    )
+    Collections["gift_codes"].update_one(
+      {"code": code}, {"$set": {"redeemed": True, "redeemed_by": request.username}}
+    )
+    log_action(
+      "Gift Code Redeemed",
+      f"User {request.username} redeemed gift code '{code}' for {gift_code['gems']} gems",
+      0x00FF00,
+    )
+    return jsonify({"success": True, "gems": gift_code["gems"]})
 
 
 @app.route("/stripe_webhook", methods=["POST"])
@@ -4008,7 +4081,7 @@ def stripe_webhook():
                 {"$inc": {"gems": gems}},
             )
 
-            send_discord_notification(
+            log_action(
                 "Gem Purchase", f"{username} purchased {gems} gems."
             )
 
