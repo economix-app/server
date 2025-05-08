@@ -4012,9 +4012,13 @@ def redeem_gift_code_endpoint():
     if not user:
       return jsonify({"error": "User not found", "code": "user-not-found"}), 404
 
-    Collections["users"].update_one(
-      {"username": request.username}, {"$inc": {"gems": gift_code["gems"]}}
-    )
+    if user["gems"] != "$INFINITY":
+      Collections["users"].update_one(
+        {"username": request.username}, {"$inc": {"gems": gift_code["gems"]}}
+      )
+    else:
+      return jsonify({"error": "User has infinite gems"}), 400
+      
     Collections["gift_codes"].update_one(
       {"code": code}, {"$set": {"redeemed": True, "redeemed_by": request.username}}
     )
